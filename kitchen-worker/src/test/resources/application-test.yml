@@ -1,6 +1,6 @@
 spring:
   application:
-    name: order-service-test
+    name: kitchen-worker-test
   datasource:
     url: jdbc:h2:mem:testdb
     driver-class-name: org.h2.Driver
@@ -33,12 +33,11 @@ server:
 rabbitmq:
   exchange:
     name: test.order.exchange
+  queue:
+    name: test.kitchen.queue
   routing-key:
     order-placed: order.placed
-
-security:
-  kitchen:
-    token-header: X-Kitchen-Token
-    token-value: test-token-value
-
-CORS_ALLOWED_ORIGIN_PATTERNS: "*"
+  dlq:
+    name: test.kitchen.dlq
+    exchange: test.kitchen.dlx
+    routing-key: kitchen.dlq.routing
