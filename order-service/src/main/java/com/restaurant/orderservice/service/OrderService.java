@@ -1,6 +1,8 @@
 package com.restaurant.orderservice.service;
 
 import com.restaurant.orderservice.dto.*;
+import com.restaurant.orderservice.dto.DeleteOrderResponse;
+import com.restaurant.orderservice.dto.DeleteAllOrdersResponse;
 import com.restaurant.orderservice.application.port.out.OrderPlacedEventPublisherPort;
 import com.restaurant.orderservice.domain.event.OrderPlacedDomainEvent;
 import com.restaurant.orderservice.entity.Order;
@@ -239,18 +241,21 @@ public class OrderService {
      * @throws OrderNotFoundException if the order does not exist or is already deleted
      */
     @Transactional
-    public void deleteOrder(UUID orderId) {
+    public DeleteOrderResponse deleteOrder(UUID orderId) {
         log.info("Soft-deleting order: orderId={}", orderId);
 
-        Order order = orderRepository.findById(orderId)
+        Order order = orderRepository.findByIdActive(orderId)
                 .orElseThrow(() -> new OrderNotFoundException(orderId));
-
-        // ⚠️ SECURITY: Soft delete instead of hard delete (Backend Enforcement)
         order.markAsDeleted();
         orderRepository.save(order);
         
         log.info("Order soft-deleted successfully: orderId={}, deletedAt={}", 
                 orderId, order.getDeletedAt());
+
+        return DeleteOrderResponse.builder()
+                .deletedId(orderId.toString())
+                .deletedAt(order.getDeletedAt().toString())
+                .build();
     }
 
     /**
@@ -267,11 +272,13 @@ public class OrderService {
      * @return number of soft-deleted orders
      */
     @Transactional
-    public long deleteAllOrders() {
+    public DeleteAllOrdersResponse deleteAllOrders() {
         List<Order> activeOrders = orderRepository.findAllActive();
-        long count = activeOrders.size();
+        int count = activeOrders.size();
         
         log.info("Soft-deleting all active orders: count={}", count);
+        
+        LocalDateTime deletedAt = LocalDateTime.now();
         
         // ⚠️ SECURITY: Soft delete instead of hard delete (Backend Enforcement)
         activeOrders.forEach(order -> {
@@ -280,7 +287,10 @@ public class OrderService {
         });
         
         log.info("All active orders soft-deleted successfully: count={}", count);
-        return count;
+        return DeleteAllOrdersResponse.builder()
+                .deletedCount(count)
+                .deletedAt(deletedAt.toString())
+                .build();
     }
     
     /**

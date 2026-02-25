@@ -1,6 +1,8 @@
 package com.restaurant.orderservice.controller;
 
 import com.restaurant.orderservice.dto.CreateOrderRequest;
+import com.restaurant.orderservice.dto.DeleteAllOrdersResponse;
+import com.restaurant.orderservice.dto.DeleteOrderResponse;
 import com.restaurant.orderservice.dto.ErrorResponse;
 import com.restaurant.orderservice.dto.OrderResponse;
 import com.restaurant.orderservice.dto.UpdateStatusRequest;
@@ -205,7 +207,9 @@ public class OrderController {
     )
     public ResponseEntity<OrderResponse> createOrder(@Valid @RequestBody CreateOrderRequest request) {
         OrderResponse orderResponse = orderService.createOrder(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(orderResponse);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .header("Location", "/orders/" + orderResponse.getId())
+                .body(orderResponse);
     }
     
     /**
@@ -522,11 +526,11 @@ public class OrderController {
                     )
             )
     })
-    public ResponseEntity<Void> deleteOrder(
+    public ResponseEntity<DeleteOrderResponse> deleteOrder(
             @Parameter(description = "UUID of the order to delete", required = true, example = "550e8400-e29b-41d4-a716-446655440000")
             @PathVariable("id") UUID id) {
-        orderService.deleteOrder(id);
-        return ResponseEntity.noContent().build();
+        DeleteOrderResponse result = orderService.deleteOrder(id);
+        return ResponseEntity.ok(result);
     }
 
     /**
@@ -540,8 +544,18 @@ public class OrderController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "All orders deleted successfully")
     })
-    public ResponseEntity<Void> deleteAllOrders() {
-        orderService.deleteAllOrders();
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<?> deleteAllOrders(
+            @RequestHeader(value = "X-Confirm-Destructive", required = false) String confirmHeader) {
+        if (confirmHeader == null || !"true".equalsIgnoreCase(confirmHeader)) {
+            ErrorResponse error = ErrorResponse.builder()
+                    .timestamp(java.time.LocalDateTime.now())
+                    .status(HttpStatus.BAD_REQUEST.value())
+                    .error("Bad Request")
+                    .message("Header X-Confirm-Destructive: true is required for bulk delete operations")
+                    .build();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        }
+        DeleteAllOrdersResponse result = orderService.deleteAllOrders();
+        return ResponseEntity.ok(result);
     }
 }

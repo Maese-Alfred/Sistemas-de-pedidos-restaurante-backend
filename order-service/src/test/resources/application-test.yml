@@ -39,6 +39,6 @@ rabbitmq:
 security:
   kitchen:
     token-header: X-Kitchen-Token
-    token-value: test-token-value
+    token-value: test-kitchen-token-2026
 
 CORS_ALLOWED_ORIGIN_PATTERNS: "*"
