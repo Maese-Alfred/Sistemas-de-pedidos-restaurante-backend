@@ -16,4 +16,5 @@ import lombok.NoArgsConstructor;
 public class DeleteAllOrdersResponse {
     private int deletedCount;
     private String deletedAt;
+    private String deletedBy;
 }

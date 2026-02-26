@@ -255,6 +255,7 @@ public class OrderService {
         return DeleteOrderResponse.builder()
                 .deletedId(orderId.toString())
                 .deletedAt(order.getDeletedAt().toString())
+                .deletedBy("KITCHEN")
                 .build();
     }
 
@@ -290,6 +291,7 @@ public class OrderService {
         return DeleteAllOrdersResponse.builder()
                 .deletedCount(count)
                 .deletedAt(deletedAt.toString())
+                .deletedBy("KITCHEN")
                 .build();
     }
     

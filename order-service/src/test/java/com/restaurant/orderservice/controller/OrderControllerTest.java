@@ -172,6 +172,7 @@ class OrderControllerTest {
         DeleteOrderResponse deleteResponse = DeleteOrderResponse.builder()
                 .deletedId(orderId.toString())
                 .deletedAt(LocalDateTime.now().toString())
+                .deletedBy("KITCHEN")
                 .build();
         when(orderService.deleteOrder(orderId)).thenReturn(deleteResponse);
 
@@ -191,6 +192,7 @@ class OrderControllerTest {
         DeleteAllOrdersResponse deleteAllResponse = DeleteAllOrdersResponse.builder()
                 .deletedCount(4)
                 .deletedAt(LocalDateTime.now().toString())
+                .deletedBy("KITCHEN")
                 .build();
         when(orderService.deleteAllOrders()).thenReturn(deleteAllResponse);
 
