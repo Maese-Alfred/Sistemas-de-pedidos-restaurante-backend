@@ -1,6 +1,4 @@
-﻿# Sistema de Pedidos de Restaurante - Frontend
-
-Frontend redesenado con React + Tailwind + shadcn, diseño responsivo para cliente y cocina, integrado con backend Spring Boot y procesamiento asincrono con RabbitMQ.
+﻿# Sistema de Pedidos de Restaurante - Backend
 
 ## Requisitos previos
 
@@ -95,8 +93,16 @@ proyectos/
 
 **`docker-compose.yml`** (ambiente produccion):
 ```yaml
+x-common-config: &common-config
+  env_file:
+    - .env
+  networks:
+    - restaurant-net
+
 services:
+  # --- BASES DE DATOS ---
   postgres:
+    <<: *common-config
     image: postgres:15
     container_name: restaurant-postgres
     environment:
@@ -108,14 +114,13 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-restaurant_user} -d ${POSTGRES_DB:-restaurant_db}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-restaurant_user} -d $${POSTGRES_DB:-restaurant_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - restaurant-net
 
   kitchen-postgres:
+    <<: *common-config
     image: postgres:15
     container_name: kitchen-postgres
     environment:
@@ -127,14 +132,13 @@ services:
     volumes:
       - kitchen_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${KITCHEN_POSTGRES_USER:-kitchen_user} -d ${KITCHEN_POSTGRES_DB:-kitchen_db}"]
+      test: ["CMD-SHELL", "pg_isready -U $${KITCHEN_POSTGRES_USER:-kitchen_user} -d $${KITCHEN_POSTGRES_DB:-kitchen_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - restaurant-net
 
   report-postgres:
+    <<: *common-config
     image: postgres:15
     container_name: report-postgres
     environment:
@@ -146,14 +150,14 @@ services:
     volumes:
       - report_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${REPORT_POSTGRES_USER:-report_user} -d ${REPORT_POSTGRES_DB:-report_db}"]
+      test: ["CMD-SHELL", "pg_isready -U $${REPORT_POSTGRES_USER:-report_user} -d $${REPORT_POSTGRES_DB:-report_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - restaurant-net
 
+  # --- MENSAJERÍA ---
   rabbitmq:
+    <<: *common-config
     image: rabbitmq:3-management
     container_name: restaurant-rabbitmq
     ports:
@@ -169,98 +173,61 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - restaurant-net
 
+  # --- MICROSERVICIOS SPRING BOOT ---
   order-service:
+    <<: *common-config
     build:
       context: ./Sistemas-de-pedidos-restaurante-backend
       dockerfile: order-service/Dockerfile
     container_name: restaurant-order-service
     ports:
       - "8080:8080"
-    environment:
-      SERVER_PORT: ${SERVER_PORT:-8080}
-      DB_URL: ${DB_URL:-jdbc:postgresql://postgres:5432/restaurant_db}
-      DB_USER: ${DB_USER:-restaurant_user}
-      DB_PASS: ${DB_PASS:-restaurant_pass}
-      RABBITMQ_HOST: ${RABBITMQ_HOST:-rabbitmq}
-      RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
-      RABBITMQ_USER: ${RABBITMQ_USER:-guest}
-      RABBITMQ_PASS: ${RABBITMQ_PASS:-guest}
-      KITCHEN_TOKEN_HEADER: ${KITCHEN_TOKEN_HEADER:-X-Kitchen-Token}
-      KITCHEN_AUTH_TOKEN: ${KITCHEN_AUTH_TOKEN:-cocina123}
     depends_on:
       postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-    networks:
-      - restaurant-net
 
   kitchen-worker:
+    <<: *common-config
     build:
       context: ./Sistemas-de-pedidos-restaurante-backend
       dockerfile: kitchen-worker/Dockerfile
     container_name: restaurant-kitchen-worker
     ports:
       - "8081:8081"
-    environment:
-      SERVER_PORT: ${KITCHEN_SERVER_PORT:-8081}
-      DB_URL: ${KITCHEN_DB_URL:-jdbc:postgresql://kitchen-postgres:5432/kitchen_db}
-      DB_USER: ${KITCHEN_POSTGRES_USER:-kitchen_user}
-      DB_PASS: ${KITCHEN_POSTGRES_PASSWORD:-kitchen_pass}
-      RABBITMQ_HOST: ${RABBITMQ_HOST:-rabbitmq}
-      RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
-      RABBITMQ_USER: ${RABBITMQ_USER:-guest}
-      RABBITMQ_PASS: ${RABBITMQ_PASS:-guest}
     depends_on:
       kitchen-postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-    networks:
-      - restaurant-net
 
   report-service:
+    <<: *common-config
     build:
       context: ./Sistemas-de-pedidos-restaurante-backend
       dockerfile: report-service/Dockerfile
     container_name: restaurant-report-service
     ports:
       - "8082:8082"
-    environment:
-      SERVER_PORT: ${REPORT_SERVER_PORT:-8082}
-      DB_URL: ${REPORT_DB_URL:-jdbc:postgresql://report-postgres:5432/report_db}
-      DB_USER: ${REPORT_POSTGRES_USER:-report_user}
-      DB_PASS: ${REPORT_POSTGRES_PASSWORD:-report_pass}
-      RABBITMQ_HOST: ${RABBITMQ_HOST:-rabbitmq}
-      RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
-      RABBITMQ_USER: ${RABBITMQ_USER:-guest}
-      RABBITMQ_PASS: ${RABBITMQ_PASS:-guest}
     depends_on:
       report-postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-    networks:
-      - restaurant-net
 
+  # --- FRONTEND ---
   frontend:
+    <<: *common-config
     build:
       context: ./Sistemas-de-pedidos-restaurante-frontend
       dockerfile: Dockerfile.frontend
     container_name: restaurant-frontend
     ports:
       - "5173:5173"
-    environment:
-      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080}
-      VITE_USE_MOCK: ${VITE_USE_MOCK:-false}
-      VITE_KITCHEN_PIN: ${VITE_KITCHEN_PIN:-cocina123}
     depends_on:
       - order-service
-    networks:
-      - restaurant-net
 
 volumes:
   postgres_data:
@@ -325,45 +292,78 @@ volumes:
 
 **`.env`** (en la carpeta raiz):
 ```bash
-# PostgreSQL - Order Service
+SERVER_PORT=8080
+DB_URL=jdbc:postgresql://postgres:5432/restaurant_db
+DB_USER=restaurant_user
+DB_PASS=restaurant_pass
+KITCHEN_TOKEN_HEADER=X-Kitchen-Token
+KITCHEN_AUTH_TOKEN=cocina123
+
+# CORS Configuration
+CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+# CORS_ALLOWED_ORIGIN_PATTERNS=https://*.trycloudflare.com
+
+# ========================================
+# KITCHEN WORKER
+# ========================================
+KITCHEN_WORKER_PORT=8081
+KITCHEN_DB_URL=jdbc:postgresql://kitchen-postgres:5432/kitchen_db
+KITCHEN_DB_USER=kitchen_user
+KITCHEN_DB_PASS=kitchen_pass
+
+# ========================================
+# REPORT SERVICE
+# ========================================
+REPORT_SERVICE_PORT=8082
+REPORT_DB_URL=jdbc:postgresql://report-postgres:5432/report_db
+REPORT_DB_USER=report_user
+REPORT_DB_PASS=report_pass
+
+# ========================================
+# RABBITMQ CONFIGURATION
+# ========================================
+RABBITMQ_HOST=rabbitmq
+RABBITMQ_PORT=5672
+RABBITMQ_USER=guest
+RABBITMQ_PASS=guest
+
+# Exchange and Routing Keys
+RABBITMQ_EXCHANGE_NAME=order.exchange
+RABBITMQ_ROUTING_KEY_ORDER_PLACED=order.placed
+RABBITMQ_DLQ_ROUTING_KEY=order.placed.failed
+
+# Kitchen Worker Queues
+RABBITMQ_KITCHEN_QUEUE_NAME=order.placed.queue
+RABBITMQ_KITCHEN_DLQ_NAME=order.placed.dlq
+RABBITMQ_KITCHEN_DLX_NAME=order.dlx
+
+# Report Service Queues
+RABBITMQ_REPORT_QUEUE_NAME=order.placed.report.queue
+RABBITMQ_REPORT_ORDER_READY_QUEUE_NAME=order.ready.report.queue
+RABBITMQ_REPORT_DLQ_NAME=order.placed.report.dlq
+RABBITMQ_REPORT_DLX_NAME=order.report.dlx
+RABBITMQ_ROUTING_KEY_ORDER_READY=order.ready
+
+# ========================================
+# POSTGRES DATABASES
+# ========================================
 POSTGRES_DB=restaurant_db
 POSTGRES_USER=restaurant_user
 POSTGRES_PASSWORD=restaurant_pass
 
-# PostgreSQL - Kitchen Worker
 KITCHEN_POSTGRES_DB=kitchen_db
 KITCHEN_POSTGRES_USER=kitchen_user
 KITCHEN_POSTGRES_PASSWORD=kitchen_pass
 
-# PostgreSQL - Report Service
 REPORT_POSTGRES_DB=report_db
 REPORT_POSTGRES_USER=report_user
 REPORT_POSTGRES_PASSWORD=report_pass
 
-# RabbitMQ
-RABBITMQ_USER=guest
-RABBITMQ_PASS=guest
-RABBITMQ_PORT=5672
-
-# Backend Services
-SERVER_PORT=8080
-KITCHEN_SERVER_PORT=8081
-REPORT_SERVER_PORT=8082
-
-# Kitchen Security
-KITCHEN_TOKEN_HEADER=X-Kitchen-Token
-KITCHEN_AUTH_TOKEN=cocina123
-
-# Frontend
-VITE_API_BASE_URL=http://localhost:8080
-VITE_USE_MOCK=false
-VITE_KITCHEN_PIN=cocina123
-```
 
 4. **Ejecutar desde la carpeta raiz:**
 
 ```bash
-# Iniciar el stack completo (produccion)
+# Iniciar el stack (produccion)
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 
 # Ver estado de contenedores
