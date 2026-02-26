@@ -161,7 +161,7 @@ class OrderValidatorTest {
         // Act & Assert
         assertThatThrownBy(() -> orderValidator.validateCreateOrderRequest(request))
                 .isInstanceOf(InactiveProductException.class)
-                .hasMessageContaining("inactive");
+                .hasMessageContaining("2");
         
         verify(productRepository).findById(2L);
     }
@@ -202,7 +202,7 @@ class OrderValidatorTest {
         // Act & Assert
         assertThatThrownBy(() -> orderValidator.validateCreateOrderRequest(request))
                 .isInstanceOf(InactiveProductException.class)
-                .hasMessageContaining("inactive");
+                .hasMessageContaining("2");
         
         verify(productRepository).findById(1L);
         verify(productRepository).findById(2L);

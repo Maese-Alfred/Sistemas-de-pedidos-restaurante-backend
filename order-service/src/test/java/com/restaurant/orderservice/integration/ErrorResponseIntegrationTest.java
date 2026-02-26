@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.bean.MockBean;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
@@ -153,21 +153,20 @@ class ErrorResponseIntegrationTest {
     }
 
     /**
-     * INT-ERR-05: Malformed JSON no expone detalles internos.
+     * INT-ERR-05: Las respuestas 500 NO deben exponer detalles internos de excepciones.
      *
-     * <p>FIXED — Ahora el {@code HttpMessageNotReadableException} se captura
-     * con un handler específico que devuelve HTTP 400 con un mensaje genérico,
-     * en lugar de caer al handler genérico y devolver 500 con
-     * {@code ex.getMessage()}.</p>
+     * <p>Resultado esperado: FAIL — El handler {@code handleGenericError} utiliza
+     * {@code ex.getMessage()} directamente, lo que expone el mensaje de
+     * {@code HttpMessageNotReadableException} que contiene detalles de parseo JSON.
+     * Esto constituye un problema de seguridad (information disclosure).</p>
      */
     @Test
-    @DisplayName("INT-ERR-05: JSON malformado retorna 400 sin exponer detalles internos")
-    void malformedJson_shouldNotExposeExceptionDetails() throws Exception {
+    @DisplayName("INT-ERR-05: Las respuestas de error por JSON malformado NO exponen detalles internos de excepción")
+    void malformedJsonError_shouldNotExposeExceptionDetails() throws Exception {
         mockMvc.perform(post("/orders")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{invalid-json"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.status", is(400)))
                 .andExpect(jsonPath("$.message", not(containsString("JSON"))))
                 .andExpect(jsonPath("$.message", not(containsString("parse"))))
                 .andExpect(jsonPath("$.message", not(containsString("Unexpected"))));

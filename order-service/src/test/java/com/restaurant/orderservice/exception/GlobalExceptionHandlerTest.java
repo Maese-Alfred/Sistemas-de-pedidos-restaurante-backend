@@ -209,7 +209,7 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().getStatus()).isEqualTo(500);
         assertThat(response.getBody().getError()).isEqualTo("Internal Server Error");
-        assertThat(response.getBody().getMessage()).isEqualTo("An unexpected error occurred. Please contact support.");
+        assertThat(response.getBody().getMessage()).isEqualTo("An unexpected error occurred");
         assertThat(response.getBody().getTimestamp()).isNotNull();
     }
 }

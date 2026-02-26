@@ -167,28 +167,39 @@ class OrderControllerTest {
     }
 
     @Test
-    void deleteOrder_WithValidId_Returns204NoContent() {
+    void deleteOrder_WithValidId_Returns200WithMetadata() {
         // Arrange
-        doNothing().when(orderService).deleteOrder(orderId);
+        DeleteOrderResponse deleteResponse = DeleteOrderResponse.builder()
+                .deletedId(orderId.toString())
+                .deletedAt(LocalDateTime.now().toString())
+                .build();
+        when(orderService.deleteOrder(orderId)).thenReturn(deleteResponse);
 
         // Act
-        ResponseEntity<Void> response = orderController.deleteOrder(orderId);
+        ResponseEntity<DeleteOrderResponse> response = orderController.deleteOrder(orderId);
 
         // Assert
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getDeletedId()).isEqualTo(orderId.toString());
         verify(orderService, times(1)).deleteOrder(orderId);
     }
 
     @Test
-    void deleteAllOrders_Returns204NoContent() {
+    void deleteAllOrders_WithConfirmation_Returns200WithCount() {
         // Arrange
-        when(orderService.deleteAllOrders()).thenReturn(4L);
+        DeleteAllOrdersResponse deleteAllResponse = DeleteAllOrdersResponse.builder()
+                .deletedCount(4)
+                .deletedAt(LocalDateTime.now().toString())
+                .build();
+        when(orderService.deleteAllOrders()).thenReturn(deleteAllResponse);
 
         // Act
-        ResponseEntity<Void> response = orderController.deleteAllOrders();
+        ResponseEntity<?> response = orderController.deleteAllOrders("true");
 
         // Assert
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
         verify(orderService, times(1)).deleteAllOrders();
     }
 }

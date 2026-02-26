@@ -6,7 +6,6 @@
 **Documentos de referencia:**
 - `docs/week-3-review/ARCHITECTURE.md` — Visión arquitectónica y contrato REST
 - `docs/week-3-review/REST_API_AUDIT.md` — Auditoría de endpoints
-- `docs/week-3-review/HDU.md` — Historias de usuario
 - `docs/TEST_PLAN.md` — Plan de pruebas v1 (módulo de reportes)
 
 ---

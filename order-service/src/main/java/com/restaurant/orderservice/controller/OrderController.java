@@ -1,6 +1,8 @@
 package com.restaurant.orderservice.controller;
 
 import com.restaurant.orderservice.dto.CreateOrderRequest;
+import com.restaurant.orderservice.dto.DeleteAllOrdersResponse;
+import com.restaurant.orderservice.dto.DeleteOrderResponse;
 import com.restaurant.orderservice.dto.ErrorResponse;
 import com.restaurant.orderservice.dto.OrderResponse;
 import com.restaurant.orderservice.dto.UpdateStatusRequest;
@@ -21,7 +23,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.net.URI;
 import java.util.List;
 import java.util.UUID;
 
@@ -139,7 +140,7 @@ public class OrderController {
             ),
             @ApiResponse(
                     responseCode = "404",
-                    description = "Not Found - Product does not exist",
+                    description = "Not Found - Product does not exist or is inactive",
                     content = @Content(
                             mediaType = "application/json",
                             schema = @Schema(implementation = ErrorResponse.class),
@@ -151,25 +152,6 @@ public class OrderController {
                                               "status": 404,
                                               "error": "Not Found",
                                               "message": "Product not found with id: 999"
-                                            }
-                                            """
-                            )
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "422",
-                    description = "Unprocessable Entity - Product exists but is inactive",
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(implementation = ErrorResponse.class),
-                            examples = @ExampleObject(
-                                    name = "Inactive Product",
-                                    value = """
-                                            {
-                                              "timestamp": "2024-01-15T10:30:00",
-                                              "status": 422,
-                                              "error": "Unprocessable Entity",
-                                              "message": "Product with id 5 is inactive and cannot be ordered"
                                             }
                                             """
                             )
@@ -225,8 +207,9 @@ public class OrderController {
     )
     public ResponseEntity<OrderResponse> createOrder(@Valid @RequestBody CreateOrderRequest request) {
         OrderResponse orderResponse = orderService.createOrder(request);
-        URI location = URI.create("/orders/" + orderResponse.getId());
-        return ResponseEntity.created(location).body(orderResponse);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .header("Location", "/orders/" + orderResponse.getId())
+                .body(orderResponse);
     }
     
     /**
@@ -481,25 +464,6 @@ public class OrderController {
                     )
             ),
             @ApiResponse(
-                    responseCode = "409",
-                    description = "Conflict - Invalid status transition for current order state",
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(implementation = ErrorResponse.class),
-                            examples = @ExampleObject(
-                                    name = "Invalid Transition",
-                                    value = """
-                                            {
-                                              "timestamp": "2024-01-15T10:30:00",
-                                              "status": 409,
-                                              "error": "Conflict",
-                                              "message": "Cannot transition from READY to PENDING"
-                                            }
-                                            """
-                            )
-                    )
-            ),
-            @ApiResponse(
                     responseCode = "404",
                     description = "Not Found - Order does not exist",
                     content = @Content(
@@ -554,22 +518,6 @@ public class OrderController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Order deleted successfully"),
             @ApiResponse(
-                    responseCode = "401",
-                    description = "Unauthorized - Missing kitchen token",
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(implementation = ErrorResponse.class)
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "403",
-                    description = "Forbidden - Invalid kitchen token",
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(implementation = ErrorResponse.class)
-                    )
-            ),
-            @ApiResponse(
                     responseCode = "404",
                     description = "Not Found - Order does not exist",
                     content = @Content(
@@ -578,11 +526,11 @@ public class OrderController {
                     )
             )
     })
-    public ResponseEntity<Void> deleteOrder(
+    public ResponseEntity<DeleteOrderResponse> deleteOrder(
             @Parameter(description = "UUID of the order to delete", required = true, example = "550e8400-e29b-41d4-a716-446655440000")
             @PathVariable("id") UUID id) {
-        orderService.deleteOrder(id);
-        return ResponseEntity.noContent().build();
+        DeleteOrderResponse result = orderService.deleteOrder(id);
+        return ResponseEntity.ok(result);
     }
 
     /**
@@ -594,26 +542,20 @@ public class OrderController {
             description = "Deletes all orders. Useful to reset the kitchen board and table availability."
     )
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "204", description = "All orders deleted successfully"),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Unauthorized - Missing kitchen token",
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(implementation = ErrorResponse.class)
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "403",
-                    description = "Forbidden - Invalid kitchen token",
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(implementation = ErrorResponse.class)
-                    )
-            )
+            @ApiResponse(responseCode = "204", description = "All orders deleted successfully")
     })
-    public ResponseEntity<Void> deleteAllOrders() {
-        orderService.deleteAllOrders();
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<?> deleteAllOrders(
+            @RequestHeader(value = "X-Confirm-Destructive", required = false) String confirmHeader) {
+        if (confirmHeader == null || !"true".equalsIgnoreCase(confirmHeader)) {
+            ErrorResponse error = ErrorResponse.builder()
+                    .timestamp(java.time.LocalDateTime.now())
+                    .status(HttpStatus.BAD_REQUEST.value())
+                    .error("Bad Request")
+                    .message("Header X-Confirm-Destructive: true is required for bulk delete operations")
+                    .build();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        }
+        DeleteAllOrdersResponse result = orderService.deleteAllOrders();
+        return ResponseEntity.ok(result);
     }
 }

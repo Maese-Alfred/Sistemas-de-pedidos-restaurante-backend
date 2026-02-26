@@ -72,8 +72,7 @@ class OrderSoftDeleteTest {
         order.setStatus(OrderStatus.PENDING);
         order.setDeleted(false);
         
-        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
-        when(orderRepository.save(any(Order.class))).thenAnswer(i -> i.getArguments()[0]);
+        when(orderRepository.findByIdActive(orderId)).thenReturn(Optional.of(order));
         
         // When
         orderService.deleteOrder(orderId);
@@ -94,7 +93,7 @@ class OrderSoftDeleteTest {
     void shouldThrowExceptionWhenOrderNotFound() {
         // Given
         UUID orderId = UUID.randomUUID();
-        when(orderRepository.findById(orderId)).thenReturn(Optional.empty());
+        when(orderRepository.findByIdActive(orderId)).thenReturn(Optional.empty());
         
         // When/Then
         assertThatThrownBy(() -> orderService.deleteOrder(orderId))
@@ -174,10 +173,10 @@ class OrderSoftDeleteTest {
         when(orderRepository.save(any(Order.class))).thenAnswer(i -> i.getArguments()[0]);
         
         // When
-        long deletedCount = orderService.deleteAllOrders();
+        var response = orderService.deleteAllOrders();
         
         // Then
-        assertThat(deletedCount).isEqualTo(2);
+        assertThat(response.getDeletedCount()).isEqualTo(2);
         verify(orderRepository, times(2)).save(any(Order.class));
         verify(orderRepository, never()).deleteAll(); // ⚠️ NO debe llamar deleteAll()
         verify(orderRepository, never()).delete(any(Order.class)); // ⚠️ NO debe llamar delete()

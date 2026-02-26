@@ -246,7 +246,7 @@ class OrderServiceTest {
     void deleteOrder_withExistingOrder_deletesOrder() {
         UUID orderId = UUID.randomUUID();
         Order order = buildOrder(orderId, OrderStatus.PENDING);
-        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+        when(orderRepository.findByIdActive(orderId)).thenReturn(Optional.of(order));
 
         orderService.deleteOrder(orderId);
 
@@ -258,7 +258,7 @@ class OrderServiceTest {
     @Test
     void deleteOrder_withUnknownOrder_throwsOrderNotFound() {
         UUID orderId = UUID.randomUUID();
-        when(orderRepository.findById(orderId)).thenReturn(Optional.empty());
+        when(orderRepository.findByIdActive(orderId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> orderService.deleteOrder(orderId))
                 .isInstanceOf(OrderNotFoundException.class)
@@ -275,9 +275,9 @@ class OrderServiceTest {
 
         when(orderRepository.findAllActive()).thenReturn(activeOrders);
 
-        long deletedCount = orderService.deleteAllOrders();
+        var response = orderService.deleteAllOrders();
 
-        assertThat(deletedCount).isEqualTo(2L);
+        assertThat(response.getDeletedCount()).isEqualTo(2);
         verify(orderRepository).findAllActive();
         verify(orderRepository).save(order1);
         verify(orderRepository).save(order2);

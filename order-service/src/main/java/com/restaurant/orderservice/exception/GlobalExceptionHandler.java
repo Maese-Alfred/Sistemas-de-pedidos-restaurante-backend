@@ -4,9 +4,9 @@ import com.restaurant.orderservice.dto.ErrorResponse;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -39,6 +39,21 @@ public class GlobalExceptionHandler {
      * 
      * Validates Requirements: 11.2
      */
+    /**
+     * Handles InactiveProductException.
+     * Returns 422 Unprocessable Entity when a referenced product is inactive.
+     */
+    @ExceptionHandler(InactiveProductException.class)
+    public ResponseEntity<ErrorResponse> handleInactiveProduct(InactiveProductException ex) {
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.UNPROCESSABLE_ENTITY.value())
+                .error("Unprocessable Entity")
+                .message(ex.getMessage())
+                .build();
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(error);
+    }
+
     @ExceptionHandler(ProductNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleProductNotFound(ProductNotFoundException ex) {
         ErrorResponse error = ErrorResponse.builder()
@@ -91,41 +106,15 @@ public class GlobalExceptionHandler {
     }
     
     /**
-     * Handles InactiveProductException.
-     * Returns 422 Unprocessable Entity when a product exists but is inactive.
-     * 
-     * Distinction from 404: The product was found but cannot be processed.
-     * 422 signals a semantic/business-rule error, not a missing resource.
-     * 
-     * @param ex the InactiveProductException that was thrown
-     * @return ResponseEntity with ErrorResponse and 422 status
-     * 
-     * Validates Requirements: 11.2
-     */
-    @ExceptionHandler(InactiveProductException.class)
-    public ResponseEntity<ErrorResponse> handleInactiveProduct(InactiveProductException ex) {
-        ErrorResponse error = ErrorResponse.builder()
-                .timestamp(LocalDateTime.now())
-                .status(HttpStatus.UNPROCESSABLE_ENTITY.value())
-                .error("Unprocessable Entity")
-                .message(ex.getMessage())
-                .build();
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(error);
-    }
-    
-    /**
      * Handles InvalidStatusTransitionException.
-     * Returns 409 Conflict when an invalid status transition is attempted.
-     * 
-     * 409 is more semantically correct than 400 because the request syntax is valid,
-     * but it conflicts with the current state of the resource.
+     * Returns 400 Bad Request when an invalid status transition is attempted.
      * 
      * Cumple con Copilot Instructions:
      * - Sección 4: Security - Backend Enforcement
      * - "Backend debe rechazar cambios de estado que no respeten el flujo definido"
      * 
      * @param ex the InvalidStatusTransitionException that was thrown
-     * @return ResponseEntity with ErrorResponse and 409 status
+     * @return ResponseEntity with ErrorResponse and 400 status
      * 
      * Validates Requirements: 11.1, Security Requirement
      */
@@ -190,29 +179,35 @@ public class GlobalExceptionHandler {
     
     /**
      * Handles KitchenAccessDeniedException.
-     * Returns 401 Unauthorized when kitchen token is missing,
-     * or 403 Forbidden when token is present but invalid.
-     *
-     * HTTP Semantics:
-     * - 401 Unauthorized = "Who are you?" (authentication failed / missing credentials)
-     * - 403 Forbidden = "I know who you are, but you can't do that" (authorization failed)
+     * Returns 401 Unauthorized when kitchen token is missing or invalid.
      *
      * @param ex the KitchenAccessDeniedException that was thrown
-     * @return ResponseEntity with ErrorResponse and 401 or 403 status
+     * @return ResponseEntity with ErrorResponse and 401 status
      */
-    @ExceptionHandler(KitchenAccessDeniedException.class)
-    public ResponseEntity<ErrorResponse> handleKitchenAccessDenied(KitchenAccessDeniedException ex) {
-        String msg = ex.getMessage() != null ? ex.getMessage().toLowerCase() : "";
-        boolean tokenAbsent = msg.contains("missing") || msg.contains("required");
-        HttpStatus status = tokenAbsent ? HttpStatus.UNAUTHORIZED : HttpStatus.FORBIDDEN;
-
+    /**
+     * Handles KitchenForbiddenException.
+     * Returns 403 Forbidden when kitchen token is present but invalid.
+     */
+    @ExceptionHandler(KitchenForbiddenException.class)
+    public ResponseEntity<ErrorResponse> handleKitchenForbidden(KitchenForbiddenException ex) {
         ErrorResponse error = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
-                .status(status.value())
-                .error(status.getReasonPhrase())
+                .status(HttpStatus.FORBIDDEN.value())
+                .error("Forbidden")
                 .message(ex.getMessage())
                 .build();
-        return ResponseEntity.status(status).body(error);
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+    }
+
+    @ExceptionHandler(KitchenAccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleKitchenAccessDenied(KitchenAccessDeniedException ex) {
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.UNAUTHORIZED.value())
+                .error("Unauthorized")
+                .message(ex.getMessage())
+                .build();
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
     }
 
     /**
@@ -234,61 +229,44 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Handles HttpMessageNotReadableException.
-     * Returns 400 Bad Request when the request body is malformed JSON
-     * or contains invalid values (e.g., invalid enum values in JSON body).
-     *
-     * @param ex the HttpMessageNotReadableException that was thrown
-     * @return ResponseEntity with ErrorResponse and 400 status
-     */
-    @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<ErrorResponse> handleMessageNotReadable(HttpMessageNotReadableException ex) {
-        ErrorResponse error = ErrorResponse.builder()
-                .timestamp(LocalDateTime.now())
-                .status(HttpStatus.BAD_REQUEST.value())
-                .error("Bad Request")
-                .message("Malformed request body or invalid value")
-                .build();
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
-    }
-
-    /**
-     * Handles MethodArgumentTypeMismatchException.
-     * Returns 400 Bad Request when path variables or request params have invalid format
-     * (e.g., invalid UUID format, invalid enum value).
-     *
-     * This prevents these errors from falling through to the generic 500 handler.
-     *
-     * @param ex the MethodArgumentTypeMismatchException that was thrown
-     * @return ResponseEntity with ErrorResponse and 400 status
-     */
-    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
-        String paramName = ex.getName();
-        String requiredType = ex.getRequiredType() != null ? ex.getRequiredType().getSimpleName() : "unknown";
-        String message = String.format("Invalid value for parameter '%s'. Expected type: %s", paramName, requiredType);
-
-        ErrorResponse error = ErrorResponse.builder()
-                .timestamp(LocalDateTime.now())
-                .status(HttpStatus.BAD_REQUEST.value())
-                .error("Bad Request")
-                .message(message)
-                .build();
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
-    }
-
-    /**
      * Handles all other uncaught exceptions.
      * Returns 500 Internal Server Error for unexpected errors.
-     * 
-     * SECURITY: Never expose internal exception messages to clients.
-     * Full details are logged server-side for debugging.
      * 
      * @param ex the Exception that was thrown
      * @return ResponseEntity with ErrorResponse and 500 status
      * 
      * Validates Requirements: 11.3, 11.5, 11.6
      */
+    /**
+     * Handles HttpMessageNotReadableException.
+     * Returns 400 Bad Request when the request body is malformed.
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleMalformedJson(HttpMessageNotReadableException ex) {
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Bad Request")
+                .message("Malformed request body")
+                .build();
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
+    /**
+     * Handles MethodArgumentTypeMismatchException.
+     * Returns 400 Bad Request when path variable or param type conversion fails.
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Bad Request")
+                .message("Invalid parameter: " + ex.getName())
+                .build();
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericError(Exception ex) {
         log.error("Unhandled exception", ex);
@@ -296,7 +274,7 @@ public class GlobalExceptionHandler {
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
                 .error("Internal Server Error")
-                .message("An unexpected error occurred. Please contact support.")
+                .message("An unexpected error occurred")
                 .build();
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
     }

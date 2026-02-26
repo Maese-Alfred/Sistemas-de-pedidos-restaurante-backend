@@ -42,8 +42,8 @@ public class OrderValidator {
     }
     
     private void validateTableId(Integer tableId) {
-        if (tableId == null || tableId <= 0) {
-            throw new InvalidOrderException("Table ID must be a positive integer");
+        if (tableId == null || tableId <= 0 || tableId > 12) {
+            throw new InvalidOrderException("Table ID must be a positive integer between 1 and 12");
         }
         if (tableId > 12) {
             throw new InvalidOrderException("Table ID must not exceed 12");
