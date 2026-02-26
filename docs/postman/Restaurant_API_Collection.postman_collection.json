@@ -1,0 +1,721 @@
+{
+  "info": {
+    "name": "Restaurant Order System API",
+    "description": "Colección completa de endpoints del Sistema de Pedidos de Restaurante (order-service y report-service)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "2.0.0"
+  },
+  "item": [
+    {
+      "name": "Menu",
+      "item": [
+        {
+          "name": "Get Menu",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is an array\", function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test(\"Products have required fields\", function () {",
+                  "    const products = pm.response.json();",
+                  "    if (products.length > 0) {",
+                  "        pm.expect(products[0]).to.have.property('id');",
+                  "        pm.expect(products[0]).to.have.property('name');",
+                  "        pm.expect(products[0]).to.have.property('price');",
+                  "        pm.expect(products[0]).to.have.property('isActive');",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/menu",
+            "description": "Obtiene todos los productos activos del menú."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Orders - Public",
+      "item": [
+        {
+          "name": "Create Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Order created with ID\", function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('id');",
+                  "    console.log(\"Order ID:\", response.id);",
+                  "});",
+                  "",
+                  "pm.test(\"Order has PENDING status\", function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.status).to.equal('PENDING');",
+                  "});",
+                  "",
+                  "pm.test(\"Response has required fields\", function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('tableId');",
+                  "    pm.expect(response).to.have.property('items');",
+                  "    pm.expect(response).to.have.property('createdAt');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tableId\": \"YOUR_TABLE_ID\",\n  \"items\": [\n    {\n      \"productId\": \"YOUR_PRODUCT_ID\",\n      \"quantity\": \"YOUR_QUANTITY\",\n      \"note\": \"YOUR_NOTE\"\n    },\n    {\n      \"productId\": \"YOUR_PRODUCT_ID\",\n      \"quantity\": \"YOUR_QUANTITY\"\n    }\n  ]\n}"
+            },
+            "url": "{{base_url}}/orders",
+            "description": "Crea un nuevo pedido. Retorna 201 Created con el pedido creado. Nota: Copia el ID del pedido de la respuesta para usarlo en otros requests."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Order by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has order details\", function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('id');",
+                  "    pm.expect(response).to.have.property('status');",
+                  "    pm.expect(response).to.have.property('items');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/orders/YOUR_ORDER_UUID",
+            "description": "Obtiene un pedido específico por su ID (UUID). Reemplaza YOUR_ORDER_UUID con el ID del pedido que obtuviste al crear una orden."
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Orders",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is an array\", function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/orders",
+            "description": "Lista todos los pedidos sin filtro."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Orders - Kitchen (Protected)",
+      "item": [
+        {
+          "name": "Get Orders by Status - PENDING",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"All orders have PENDING status\", function () {",
+                  "    const orders = pm.response.json();",
+                  "    orders.forEach(order => {",
+                  "        pm.expect(order.status).to.equal('PENDING');",
+                  "    });",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Kitchen-Token",
+                "value": "{{kitchen_token}}"
+              }
+            ],
+            "url": "{{base_url}}/orders?status=PENDING",
+            "description": "Filtra pedidos con estado PENDING. Requiere token de cocina (X-Kitchen-Token: cocina123)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Orders by Status - Multiple",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Orders have valid status\", function () {",
+                  "    const orders = pm.response.json();",
+                  "    const validStatuses = ['PENDING', 'IN_PREPARATION', 'READY'];",
+                  "    orders.forEach(order => {",
+                  "        pm.expect(validStatuses).to.include(order.status);",
+                  "    });",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Kitchen-Token",
+                "value": "{{kitchen_token}}"
+              }
+            ],
+            "url": "{{base_url}}/orders?status=PENDING,IN_PREPARATION,READY",
+            "description": "Filtra pedidos activos (varios estados). Requiere token de cocina (X-Kitchen-Token: cocina123)."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Order Status - IN_PREPARATION",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Status updated to IN_PREPARATION\", function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.status).to.equal('IN_PREPARATION');",
+                  "});",
+                  "",
+                  "pm.test(\"updatedAt timestamp changed\", function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('updatedAt');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Kitchen-Token",
+                "value": "{{kitchen_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"IN_PREPARATION\"\n}"
+            },
+            "url": "{{base_url}}/orders/YOUR_ORDER_UUID/status",
+            "description": "Actualiza el estado del pedido a IN_PREPARATION. Reemplaza YOUR_ORDER_UUID con el ID del pedido."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Order Status - READY",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Status updated to READY\", function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.status).to.equal('READY');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Kitchen-Token",
+                "value": "{{kitchen_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"READY\"\n}"
+            },
+            "url": "{{base_url}}/orders/YOUR_ORDER_UUID/status",
+            "description": "Actualiza el estado del pedido a READY. Reemplaza YOUR_ORDER_UUID con el ID del pedido."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Order by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 204\", function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});",
+                  "",
+                  "pm.test(\"Response body is empty\", function () {",
+                  "    pm.expect(pm.response.text()).to.be.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-Kitchen-Token",
+                "value": "{{kitchen_token}}"
+              }
+            ],
+            "url": "{{base_url}}/orders/YOUR_ORDER_UUID",
+            "description": "Elimina un pedido específico. Retorna 204 No Content. Reemplaza YOUR_ORDER_UUID con el ID del pedido."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete All Orders",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 204\", function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-Kitchen-Token",
+                "value": "{{kitchen_token}}"
+              }
+            ],
+            "url": "{{base_url}}/orders",
+            "description": "⚠️ CUIDADO: Elimina TODOS los pedidos del sistema."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Error Cases",
+      "item": [
+        {
+          "name": "Create Order - Invalid TableId",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test(\"Error response has correct structure\", function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('status');",
+                  "    pm.expect(response).to.have.property('error');",
+                  "    pm.expect(response).to.have.property('message');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tableId\": \"YOUR_INVALID_TABLE_ID\",\n  \"items\": [\n    {\n      \"productId\": \"YOUR_PRODUCT_ID\",\n      \"quantity\": 2\n    }\n  ]\n}"
+            },
+            "url": "{{base_url}}/orders",
+            "description": "Test con tableId negativo. Debe retornar 400 Bad Request."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Order - Empty Items",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tableId\": \"YOUR_TABLE_ID\",\n  \"items\": []\n}"
+            },
+            "url": "{{base_url}}/orders",
+            "description": "Test con array de items vacío. Debe retornar 400 Bad Request."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Order - Product Not Found",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 404\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tableId\": \"YOUR_TABLE_ID\",\n  \"items\": [\n    {\n      \"productId\": \"YOUR_PRODUCT_ID\",\n      \"quantity\": \"YOUR_QUANTITY\"\n    }\n  ]\n}"
+            },
+            "url": "{{base_url}}/orders",
+            "description": "Test con productId inexistente. Debe retornar 404 Not Found."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Order - Not Found",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 404\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/orders/00000000-0000-0000-0000-000000000000",
+            "description": "Test con UUID inexistente. Debe retornar 404 Not Found."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Status - No Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 401\", function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"READY\"\n}"
+            },
+            "url": "{{base_url}}/orders/YOUR_ORDER_UUID/status",
+            "description": "Test sin token de cocina. Debe retornar 401 Unauthorized."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Status - Invalid Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 401\", function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Kitchen-Token",
+                "value": "token_incorrecto"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"READY\"\n}"
+            },
+            "url": "{{base_url}}/orders/YOUR_ORDER_UUID/status",
+            "description": "Test con token incorrecto. Debe retornar 401 Unauthorized."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Status - Invalid Status Value",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Kitchen-Token",
+                "value": "{{kitchen_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"INVALID_STATUS\"\n}"
+            },
+            "url": "{{base_url}}/orders/YOUR_ORDER_UUID/status",
+            "description": "Test con valor de estado inválido. Debe retornar 400 Bad Request."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "item": [
+        {
+          "name": "Get Report by Date Range",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has report structure\", function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('totalReadyOrders');",
+                  "    pm.expect(response).to.have.property('totalRevenue');",
+                  "    pm.expect(response).to.have.property('productBreakdown');",
+                  "});",
+                  "",
+                  "pm.test(\"Product breakdown is an array\", function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.productBreakdown).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test(\"Product breakdown items have required fields\", function () {",
+                  "    const response = pm.response.json();",
+                  "    if (response.productBreakdown.length > 0) {",
+                  "        const item = response.productBreakdown[0];",
+                  "        pm.expect(item).to.have.property('productId');",
+                  "        pm.expect(item).to.have.property('productName');",
+                  "        pm.expect(item).to.have.property('quantitySold');",
+                  "        pm.expect(item).to.have.property('totalAccumulated');",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{report_url}}/reports?startDate=YOUR_START_DATE&endDate=YOUR_END_DATE",
+            "description": "Obtiene un reporte de ventas filtrado por rango de fechas. Incluye el total de órdenes READY, ingresos totales y desglose por producto.\n\nEjemplo de respuesta:\n```json\n{\n  \"totalReadyOrders\": 10,\n  \"totalRevenue\": 5500.00,\n  \"productBreakdown\": [\n    {\n      \"productId\": \"YOUR_PRODUCT_ID\",\n      \"productName\": \"Empanadas de carne\",\n      \"quantitySold\": 20,\n      \"totalAccumulated\": 2000.00\n    },\n    {\n      \"productId\": \"YOUR_PRODUCT_ID\",\n      \"productName\": \"Bife de chorizo\",\n      \"quantitySold\": 8,\n      \"totalAccumulated\": 3500.00\n    }\n  ]\n}\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Report - Current Month",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{report_url}}/reports?startDate=YOUR_START_DATE&endDate=YOUR_END_DATE",
+            "description": "Ejemplo de reporte para un mes específico. Reemplaza YOUR_START_DATE y YOUR_END_DATE con las fechas del mes que desees consultar (formato YYYY-MM-DD, ejemplo: 2024-02-01 y 2024-02-29)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Report - Invalid Date Format",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{report_url}}/reports?startDate=YOUR_INVALID_DATE&endDate=YOUR_INVALID_DATE",
+            "description": "Test con formato de fecha inválido. Debe retornar 400 Bad Request. El formato correcto es YYYY-MM-DD."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
