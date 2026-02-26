@@ -1,6 +1,7 @@
 package com.restaurant.orderservice.dto;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -21,6 +22,7 @@ public class CreateOrderRequest {
     
     @NotNull(message = "Table ID is required")
     @Min(value = 1, message = "Table ID must be positive")
+    @Max(value = 12, message = "Table ID must not exceed 12")
     private Integer tableId;
     
     @NotEmpty(message = "Order must contain at least one item")

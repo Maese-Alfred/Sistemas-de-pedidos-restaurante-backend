@@ -153,20 +153,21 @@ class ErrorResponseIntegrationTest {
     }
 
     /**
-     * INT-ERR-05: Las respuestas 500 NO deben exponer detalles internos de excepciones.
+     * INT-ERR-05: Malformed JSON no expone detalles internos.
      *
-     * <p>Resultado esperado: FAIL — El handler {@code handleGenericError} utiliza
-     * {@code ex.getMessage()} directamente, lo que expone el mensaje de
-     * {@code HttpMessageNotReadableException} que contiene detalles de parseo JSON.
-     * Esto constituye un problema de seguridad (information disclosure).</p>
+     * <p>FIXED — Ahora el {@code HttpMessageNotReadableException} se captura
+     * con un handler específico que devuelve HTTP 400 con un mensaje genérico,
+     * en lugar de caer al handler genérico y devolver 500 con
+     * {@code ex.getMessage()}.</p>
      */
     @Test
-    @DisplayName("INT-ERR-05: Las respuestas 500 NO exponen detalles internos de excepción")
-    void internalServerError_shouldNotExposeExceptionDetails() throws Exception {
+    @DisplayName("INT-ERR-05: JSON malformado retorna 400 sin exponer detalles internos")
+    void malformedJson_shouldNotExposeExceptionDetails() throws Exception {
         mockMvc.perform(post("/orders")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{invalid-json"))
-                .andExpect(status().isInternalServerError())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status", is(400)))
                 .andExpect(jsonPath("$.message", not(containsString("JSON"))))
                 .andExpect(jsonPath("$.message", not(containsString("parse"))))
                 .andExpect(jsonPath("$.message", not(containsString("Unexpected"))));

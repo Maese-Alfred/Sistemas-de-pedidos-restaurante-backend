@@ -3,6 +3,7 @@ package com.restaurant.orderservice.service;
 import com.restaurant.orderservice.dto.CreateOrderRequest;
 import com.restaurant.orderservice.dto.OrderItemRequest;
 import com.restaurant.orderservice.entity.Product;
+import com.restaurant.orderservice.exception.InactiveProductException;
 import com.restaurant.orderservice.exception.InvalidOrderException;
 import com.restaurant.orderservice.exception.ProductNotFoundException;
 import com.restaurant.orderservice.repository.ProductRepository;
@@ -150,7 +151,7 @@ class OrderValidatorTest {
     }
     
     @Test
-    void validateCreateOrderRequest_withInactiveProduct_throwsProductNotFoundException() {
+    void validateCreateOrderRequest_withInactiveProduct_throwsInactiveProductException() {
         // Arrange
         OrderItemRequest itemRequest = new OrderItemRequest(2L, 1, null);
         CreateOrderRequest request = new CreateOrderRequest(5, List.of(itemRequest));
@@ -159,8 +160,8 @@ class OrderValidatorTest {
         
         // Act & Assert
         assertThatThrownBy(() -> orderValidator.validateCreateOrderRequest(request))
-                .isInstanceOf(ProductNotFoundException.class)
-                .hasMessageContaining("Product not found with id: 2");
+                .isInstanceOf(InactiveProductException.class)
+                .hasMessageContaining("inactive");
         
         verify(productRepository).findById(2L);
     }
@@ -189,7 +190,7 @@ class OrderValidatorTest {
     }
     
     @Test
-    void validateCreateOrderRequest_withMixedActiveInactiveProducts_throwsProductNotFoundException() {
+    void validateCreateOrderRequest_withMixedActiveInactiveProducts_throwsInactiveProductException() {
         // Arrange
         OrderItemRequest item1 = new OrderItemRequest(1L, 2, null);
         OrderItemRequest item2 = new OrderItemRequest(2L, 1, null);
@@ -200,8 +201,8 @@ class OrderValidatorTest {
         
         // Act & Assert
         assertThatThrownBy(() -> orderValidator.validateCreateOrderRequest(request))
-                .isInstanceOf(ProductNotFoundException.class)
-                .hasMessageContaining("Product not found with id: 2");
+                .isInstanceOf(InactiveProductException.class)
+                .hasMessageContaining("inactive");
         
         verify(productRepository).findById(1L);
         verify(productRepository).findById(2L);

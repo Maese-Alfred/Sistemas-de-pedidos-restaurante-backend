@@ -4,6 +4,7 @@ import com.restaurant.orderservice.dto.CreateOrderRequest;
 import com.restaurant.orderservice.dto.OrderItemRequest;
 import com.restaurant.orderservice.entity.Product;
 import com.restaurant.orderservice.exception.InvalidOrderException;
+import com.restaurant.orderservice.exception.InactiveProductException;
 import com.restaurant.orderservice.exception.ProductNotFoundException;
 import com.restaurant.orderservice.repository.ProductRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -128,18 +129,13 @@ class OrderValidatorBoundaryTest {
     // ── UNIT-DOM-08: inactive product should be distinguishable from not found ──
 
     /**
-     * EXPECTED TO FAIL — The current implementation throws
-     * {@link ProductNotFoundException} for BOTH non-existent and inactive products.
-     * <p>
-     * Per TEST_PLAN_V3, inactive products should produce a distinguishable error
-     * (e.g. {@link InvalidOrderException} or a distinct message) so the client
-     * receives HTTP 422 instead of 404.
-     * Once the production code differentiates between "not found" and "inactive",
-     * this test should pass.
-     * </p>
+     * FIXED — The implementation now throws {@link InactiveProductException}
+     * for inactive products, distinct from {@link ProductNotFoundException}
+     * for non-existent products. This allows the API to return HTTP 422
+     * instead of 404.
      */
     @Test
-    @DisplayName("UNIT-DOM-08 — inactive product should produce a distinct exception from non-existent product [EXPECTED FAIL — same exception type]")
+    @DisplayName("UNIT-DOM-08 — inactive product should produce a distinct exception from non-existent product")
     void validateCreateOrderRequest_withInactiveProduct_shouldRejectDistinctly() {
         // Arrange
         when(productRepository.findById(2L)).thenReturn(Optional.of(inactiveProduct));
@@ -147,11 +143,8 @@ class OrderValidatorBoundaryTest {
         CreateOrderRequest request = buildRequest(3, items);
 
         // Act & Assert
-        // BUG: Both inactive and non-existent products currently throw
-        // ProductNotFoundException with the same message format.
-        // The inactive case should throw a DIFFERENT exception type
-        // (e.g. InvalidOrderException) to allow the API to return 422 instead of 404.
         assertThatThrownBy(() -> orderValidator.validateCreateOrderRequest(request))
+                .isInstanceOf(InactiveProductException.class)
                 .isNotInstanceOf(ProductNotFoundException.class)
                 .hasMessageContaining("inactive");
     }

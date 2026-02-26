@@ -3,6 +3,7 @@ package com.restaurant.orderservice.service;
 import com.restaurant.orderservice.dto.CreateOrderRequest;
 import com.restaurant.orderservice.dto.OrderItemRequest;
 import com.restaurant.orderservice.entity.Product;
+import com.restaurant.orderservice.exception.InactiveProductException;
 import com.restaurant.orderservice.exception.InvalidOrderException;
 import com.restaurant.orderservice.exception.ProductNotFoundException;
 import com.restaurant.orderservice.repository.ProductRepository;
@@ -44,6 +45,9 @@ public class OrderValidator {
         if (tableId == null || tableId <= 0) {
             throw new InvalidOrderException("Table ID must be a positive integer");
         }
+        if (tableId > 12) {
+            throw new InvalidOrderException("Table ID must not exceed 12");
+        }
     }
     
     private void validateItemsList(java.util.List<OrderItemRequest> items) {
@@ -59,7 +63,7 @@ public class OrderValidator {
                     .orElseThrow(() -> new ProductNotFoundException(itemRequest.getProductId()));
             
             if (!product.getIsActive()) {
-                throw new ProductNotFoundException(itemRequest.getProductId());
+                throw new InactiveProductException(itemRequest.getProductId());
             }
         }
     }
