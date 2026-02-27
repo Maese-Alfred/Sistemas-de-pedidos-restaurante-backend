@@ -57,7 +57,7 @@ class OrderEntityBranchTest {
 
         // Assert
         assertThat(order.isDeleted()).isTrue();
-        assertThat(secondDeletion).isGreaterThanOrEqualTo(firstDeletion);
+        assertThat(secondDeletion).isAfterOrEqualTo(firstDeletion);
     }
 
     @Test
