@@ -37,6 +37,21 @@
         <sonar.moduleKey>${project.artifactId}</sonar.moduleKey>
         <sonar.java.coveragePlugin>jacoco</sonar.java.coveragePlugin>
         <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
+        <!-- Mirror JaCoCo excludes so SonarCloud doesn't penalize coverage on infrastructure/boilerplate -->
+        <sonar.coverage.exclusions>
+            **/config/**,
+            **/dto/**,
+            **/entity/**,
+            **/exception/**,
+            **/enums/**,
+            **/*Application.java,
+            **/event/*Event*,
+            **/domain/event/**,
+            **/*Message.java,
+            **/application/command/**,
+            **/domain/model/**,
+            **/infrastructure/messaging/**
+        </sonar.coverage.exclusions>
     </properties>
 
     <dependencyManagement>
