@@ -1,97 +1,144 @@
-﻿# Sistema de Pedidos de Restaurante - Backend
+# Sistema de Pedidos de Restaurante — Backend
 
-## Requisitos previos
-
-### Clonar ambos repositorios
-
-Este proyecto requiere **dos repositorios independientes**:
-
-```bash
-# Repositorio del backend
-git clone <url-backend-repo> Sistemas-de-pedidos-restaurante-backend
-
-# Repositorio del frontend
-git clone <url-frontend-repo> Sistemas-de-pedidos-restaurante-frontend
-```
-
-Crear una carpeta padre que contenga ambos:
-
-```
-proyectos/
-├── Sistemas-de-pedidos-restaurante-backend/   # Backend repo
-│   ├── order-service/
-│   ├── kitchen-worker/
-│   ├── report-service/
-│   ├── pom.xml
-│   └── ...
-└── Sistemas-de-pedidos-restaurante-frontend/  # Frontend repo
-    ├── src/
-    ├── package.json
-    └── ...
-```
-
-## Estado actual
-
-- Rama objetivo de trabajo: `develop`
-- Modo por defecto para produccion: **API real** (`VITE_USE_MOCK=false`)
-- Stack completo en contenedores: frontend, order-service, kitchen-worker, postgres (x3), rabbitmq
+Backend del sistema de pedidos, compuesto por tres microservicios Java 17 / Spring Boot 3.2 con bases de datos separadas y comunicacion asincrona via RabbitMQ.
 
 ## Arquitectura
 
 ```mermaid
 graph LR
-  C[Cliente Web\nReact + Vite] -->|REST| O[Order Service\nSpring Boot :8080]
-  K[Cocina Web\nReact + Vite] -->|REST + kitchen token| O
-  O -->|JPA| P1[(PostgreSQL\nrestaurant_db)]
-  O -->|publish order.placed| R[(RabbitMQ)]
-  R -->|consume event| W[Kitchen Worker\nSpring Boot]
-  W -->|JPA| P2[(PostgreSQL\nkitchen_db)]
+  F[Frontend React] -->|REST| O[order-service :8080]
+  O -->|JPA| P1[(PostgreSQL\nrestaurant_db :5432)]
+  O -->|publish order.placed| RMQ[(RabbitMQ :5672)]
+  RMQ -->|consume| KW[kitchen-worker :8081]
+  RMQ -->|consume| RS[report-service :8082]
+  KW -->|JPA| P2[(PostgreSQL\nkitchen_db :5433)]
+  RS -->|JPA| P3[(PostgreSQL\nreport_db :5434)]
 ```
 
-## Flujo principal
+| Servicio | Responsabilidad | Puerto |
+|----------|----------------|--------|
+| **order-service** | API REST, persistir ordenes, publicar eventos | 8080 |
+| **kitchen-worker** | Consumir eventos AMQP, proyectar ordenes en cocina | 8081 |
+| **report-service** | Consumir eventos AMQP, generar reportes | 8082 |
 
-```mermaid
-sequenceDiagram
-  participant U as Cliente
-  participant F as Frontend
-  participant O as Order Service
-  participant R as RabbitMQ
-  participant W as Kitchen Worker
+### Reglas de comunicacion
 
-  U->>F: Selecciona mesa y platos
-  F->>O: POST /orders
-  O->>O: Persistir orden (PENDING)
-  O->>R: Publicar order.placed
-  R->>W: Entregar evento
-  W->>W: Procesar orden (IN_PREPARATION)
-  U->>F: Consultar estado
-  F->>O: GET /orders/{id}
-  F->>O: PATCH /orders/{id}/status (cocina)
+- Frontend ↔ order-service: **REST**
+- order-service → kitchen-worker / report-service: **RabbitMQ** (evento `order.placed`)
+- **Prohibido**: llamadas REST directas entre servicios backend
+
+## Levantar el proyecto con Docker
+
+### Requisitos
+
+- Docker Desktop instalado y corriendo
+- Puertos libres: `5173`, `8080`, `8081`, `8082`, `5432`, `5433`, `5434`, `5672`, `15672`
+
+### 1. Clonar ambos repositorios en una carpeta comun
+
+```bash
+mkdir Sistemas-de-pedidos-restaurante && cd Sistemas-de-pedidos-restaurante
+
+git clone <url-backend> Sistemas-de-pedidos-restaurante-backend
+git clone <url-frontend> Sistemas-de-pedidos-restaurante-frontend
 ```
 
-## Quickstart con Docker (recomendado)
+Resultado esperado:
 
-### Setup inicial
-
-1. **Requisitos:**
-   - Docker Desktop en ejecucion
-   - Puertos libres: `5173`, `8080`, `5432`, `5433`, `5434`, `5672`, `15672`
-
-2. **Crear archivos de configuracion en la carpeta raiz (fuera de los repos):**
-
-Crear la estructura:
 ```
-proyectos/
-├── docker-compose.yml          # (crear aqui)
-├── docker-compose.dev.yml      # (crear aqui)
-├── .env                        # (crear aqui)
+Sistemas-de-pedidos-restaurante/          # carpeta raiz
+├── docker-compose.yml                    # orquestacion de servicios
+├── docker-compose.dev.yml                # override para hot-reload (opcional)
+├── .env                                  # variables de entorno
 ├── Sistemas-de-pedidos-restaurante-backend/
+│   ├── order-service/
+│   ├── kitchen-worker/
+│   ├── report-service/
+│   └── pom.xml
 └── Sistemas-de-pedidos-restaurante-frontend/
+    ├── src/
+    └── package.json
 ```
 
-3. **Copiar archivos docker-compose:**
+### 2. Crear el archivo `.env` en la carpeta raiz
 
-**`docker-compose.yml`** (ambiente produccion):
+Crear el archivo `Sistemas-de-pedidos-restaurante/.env` con el siguiente contenido:
+
+```dotenv
+# ========================================
+# ORDER SERVICE
+# ========================================
+SERVER_PORT=8080
+DB_URL=jdbc:postgresql://postgres:5432/restaurant_db
+DB_USER=restaurant_user
+DB_PASS=restaurant_pass
+KITCHEN_TOKEN_HEADER=X-Kitchen-Token
+KITCHEN_AUTH_TOKEN=cocina123
+
+# CORS — origenes permitidos para el frontend
+CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+
+# ========================================
+# KITCHEN WORKER
+# ========================================
+KITCHEN_WORKER_PORT=8081
+KITCHEN_DB_URL=jdbc:postgresql://kitchen-postgres:5432/kitchen_db
+KITCHEN_DB_USER=kitchen_user
+KITCHEN_DB_PASS=kitchen_pass
+
+# ========================================
+# REPORT SERVICE
+# ========================================
+REPORT_SERVICE_PORT=8082
+REPORT_DB_URL=jdbc:postgresql://report-postgres:5432/report_db
+REPORT_DB_USER=report_user
+REPORT_DB_PASS=report_pass
+
+# ========================================
+# RABBITMQ
+# ========================================
+RABBITMQ_HOST=rabbitmq
+RABBITMQ_PORT=5672
+RABBITMQ_USER=guest
+RABBITMQ_PASS=guest
+
+# Exchange y Routing Keys
+RABBITMQ_EXCHANGE_NAME=order.exchange
+RABBITMQ_ROUTING_KEY_ORDER_PLACED=order.placed
+RABBITMQ_ROUTING_KEY_ORDER_READY=order.ready
+RABBITMQ_DLQ_ROUTING_KEY=order.placed.failed
+
+# Colas Kitchen Worker
+RABBITMQ_KITCHEN_QUEUE_NAME=order.placed.queue
+RABBITMQ_KITCHEN_DLQ_NAME=order.placed.dlq
+RABBITMQ_KITCHEN_DLX_NAME=order.dlx
+
+# Colas Report Service
+RABBITMQ_REPORT_QUEUE_NAME=order.placed.report.queue
+RABBITMQ_REPORT_ORDER_READY_QUEUE_NAME=order.ready.report.queue
+RABBITMQ_REPORT_DLQ_NAME=order.placed.report.dlq
+RABBITMQ_REPORT_DLX_NAME=order.report.dlx
+
+# ========================================
+# BASES DE DATOS POSTGRES (contenedores Docker)
+# ========================================
+POSTGRES_DB=restaurant_db
+POSTGRES_USER=restaurant_user
+POSTGRES_PASSWORD=restaurant_pass
+
+KITCHEN_POSTGRES_DB=kitchen_db
+KITCHEN_POSTGRES_USER=kitchen_user
+KITCHEN_POSTGRES_PASSWORD=kitchen_pass
+
+REPORT_POSTGRES_DB=report_db
+REPORT_POSTGRES_USER=report_user
+REPORT_POSTGRES_PASSWORD=report_pass
+```
+
+> **Nota:** Las variables `POSTGRES_*` / `KITCHEN_POSTGRES_*` / `REPORT_POSTGRES_*` las usan los contenedores PostgreSQL para crear las bases de datos. Las variables `DB_*` / `KITCHEN_DB_*` / `REPORT_DB_*` son las que usan los servicios Spring Boot para conectarse.
+
+### 3. Crear el archivo `docker-compose.yml` en la carpeta raiz
+
 ```yaml
 x-common-config: &common-config
   env_file:
@@ -100,7 +147,6 @@ x-common-config: &common-config
     - restaurant-net
 
 services:
-  # --- BASES DE DATOS ---
   postgres:
     <<: *common-config
     image: postgres:15
@@ -155,7 +201,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # --- MENSAJERÍA ---
   rabbitmq:
     <<: *common-config
     image: rabbitmq:3-management
@@ -174,9 +219,9 @@ services:
       timeout: 5s
       retries: 5
 
-  # --- MICROSERVICIOS SPRING BOOT ---
   order-service:
     <<: *common-config
+    image: ghcr.io/maese-alfred/sistemas-de-pedidos-restaurante/order-service:latest
     build:
       context: ./Sistemas-de-pedidos-restaurante-backend
       dockerfile: order-service/Dockerfile
@@ -191,6 +236,7 @@ services:
 
   kitchen-worker:
     <<: *common-config
+    image: ghcr.io/maese-alfred/sistemas-de-pedidos-restaurante/kitchen-worker:latest
     build:
       context: ./Sistemas-de-pedidos-restaurante-backend
       dockerfile: kitchen-worker/Dockerfile
@@ -205,6 +251,7 @@ services:
 
   report-service:
     <<: *common-config
+    image: ghcr.io/maese-alfred/sistemas-de-pedidos-restaurante/report-service:latest
     build:
       context: ./Sistemas-de-pedidos-restaurante-backend
       dockerfile: report-service/Dockerfile
@@ -217,15 +264,15 @@ services:
       rabbitmq:
         condition: service_healthy
 
-  # --- FRONTEND ---
   frontend:
     <<: *common-config
+    image: ghcr.io/maese-alfred/sistemas-de-pedidos-restaurante/frontend:latest
     build:
       context: ./Sistemas-de-pedidos-restaurante-frontend
       dockerfile: Dockerfile.frontend
     container_name: restaurant-frontend
     ports:
-      - "5173:5173"
+      - "5173:8080"
     depends_on:
       - order-service
 
@@ -240,292 +287,150 @@ networks:
     driver: bridge
 ```
 
-**`docker-compose.dev.yml`** (override para desarrollo con hot-reload):
-```yaml
-services:
-  order-service:
-    build:
-      context: ./Sistemas-de-pedidos-restaurante-backend
-      dockerfile: order-service/Dockerfile.dev
-    volumes:
-      - ./Sistemas-de-pedidos-restaurante-backend/order-service/src:/app/order-service/src
-      - maven_cache:/root/.m2
-    environment:
-      SPRING_DEVTOOLS_RESTART_ENABLED: "true"
-      SPRING_DEVTOOLS_LIVERELOAD_ENABLED: "true"
+> **Puerto del frontend:** El contenedor del frontend sirve internamente en el puerto `8080` (Vite preview), mapeado al puerto `5173` del host. No confundir con el `order-service` que tambien usa `8080` en otro contenedor.
 
-  kitchen-worker:
-    build:
-      context: ./Sistemas-de-pedidos-restaurante-backend
-      dockerfile: kitchen-worker/Dockerfile.dev
-    volumes:
-      - ./Sistemas-de-pedidos-restaurante-backend/kitchen-worker/src:/app/kitchen-worker/src
-      - maven_cache:/root/.m2
-    environment:
-      SPRING_DEVTOOLS_RESTART_ENABLED: "true"
-      SPRING_DEVTOOLS_LIVERELOAD_ENABLED: "true"
-
-  report-service:
-    build:
-      context: ./Sistemas-de-pedidos-restaurante-backend
-      dockerfile: report-service/Dockerfile.dev
-    volumes:
-      - ./Sistemas-de-pedidos-restaurante-backend/report-service/src:/app/report-service/src
-      - maven_cache:/root/.m2
-    environment:
-      SPRING_DEVTOOLS_RESTART_ENABLED: "true"
-      SPRING_DEVTOOLS_LIVERELOAD_ENABLED: "true"
-
-  frontend:
-    build:
-      context: ./Sistemas-de-pedidos-restaurante-frontend
-      dockerfile: Dockerfile.frontend.dev
-    volumes:
-      - ./Sistemas-de-pedidos-restaurante-frontend:/app
-      - /app/node_modules
-    environment:
-      CHOKIDAR_USEPOLLING: "true"
-
-volumes:
-  maven_cache:
-```
-
-**`.env`** (en la carpeta raiz):
-```bash
-SERVER_PORT=8080
-DB_URL=jdbc:postgresql://postgres:5432/restaurant_db
-DB_USER=restaurant_user
-DB_PASS=restaurant_pass
-KITCHEN_TOKEN_HEADER=X-Kitchen-Token
-KITCHEN_AUTH_TOKEN=cocina123
-
-# CORS Configuration
-CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
-# CORS_ALLOWED_ORIGIN_PATTERNS=https://*.trycloudflare.com
-
-# ========================================
-# KITCHEN WORKER
-# ========================================
-KITCHEN_WORKER_PORT=8081
-KITCHEN_DB_URL=jdbc:postgresql://kitchen-postgres:5432/kitchen_db
-KITCHEN_DB_USER=kitchen_user
-KITCHEN_DB_PASS=kitchen_pass
-
-# ========================================
-# REPORT SERVICE
-# ========================================
-REPORT_SERVICE_PORT=8082
-REPORT_DB_URL=jdbc:postgresql://report-postgres:5432/report_db
-REPORT_DB_USER=report_user
-REPORT_DB_PASS=report_pass
-
-# ========================================
-# RABBITMQ CONFIGURATION
-# ========================================
-RABBITMQ_HOST=rabbitmq
-RABBITMQ_PORT=5672
-RABBITMQ_USER=guest
-RABBITMQ_PASS=guest
-
-# Exchange and Routing Keys
-RABBITMQ_EXCHANGE_NAME=order.exchange
-RABBITMQ_ROUTING_KEY_ORDER_PLACED=order.placed
-RABBITMQ_DLQ_ROUTING_KEY=order.placed.failed
-
-# Kitchen Worker Queues
-RABBITMQ_KITCHEN_QUEUE_NAME=order.placed.queue
-RABBITMQ_KITCHEN_DLQ_NAME=order.placed.dlq
-RABBITMQ_KITCHEN_DLX_NAME=order.dlx
-
-# Report Service Queues
-RABBITMQ_REPORT_QUEUE_NAME=order.placed.report.queue
-RABBITMQ_REPORT_ORDER_READY_QUEUE_NAME=order.ready.report.queue
-RABBITMQ_REPORT_DLQ_NAME=order.placed.report.dlq
-RABBITMQ_REPORT_DLX_NAME=order.report.dlx
-RABBITMQ_ROUTING_KEY_ORDER_READY=order.ready
-
-# ========================================
-# POSTGRES DATABASES
-# ========================================
-POSTGRES_DB=restaurant_db
-POSTGRES_USER=restaurant_user
-POSTGRES_PASSWORD=restaurant_pass
-
-KITCHEN_POSTGRES_DB=kitchen_db
-KITCHEN_POSTGRES_USER=kitchen_user
-KITCHEN_POSTGRES_PASSWORD=kitchen_pass
-
-REPORT_POSTGRES_DB=report_db
-REPORT_POSTGRES_USER=report_user
-REPORT_POSTGRES_PASSWORD=report_pass
-
-
-4. **Ejecutar desde la carpeta raiz:**
+### 4. Iniciar el stack
 
 ```bash
-# Iniciar el stack (produccion)
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+cd Sistemas-de-pedidos-restaurante
 
-# Ver estado de contenedores
+# Construir y levantar todos los servicios
+docker compose up --build -d
+
+# Verificar que todo este corriendo
 docker compose ps
-
-# Ver logs de un servicio
-docker compose logs -f frontend
 ```
 
-### Dockerfiles de referencia
+### URLs disponibles
 
-**`Dockerfile.frontend`** (produccion):
-```dockerfile
-FROM node:20-alpine AS deps
-WORKDIR /app
-COPY package.json package-lock.json* ./
-RUN npm ci || npm i
+| Recurso | URL |
+|---------|-----|
+| Frontend (cliente) | http://localhost:5173 |
+| Frontend (cocina) | http://localhost:5173/kitchen |
+| API Order Service | http://localhost:8080 |
+| Swagger UI | http://localhost:8080/swagger-ui.html |
+| Report Service API | http://localhost:8082 |
+| RabbitMQ Management | http://localhost:15672 (guest / guest) |
 
-FROM node:20-alpine AS build
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-RUN npm run build
-
-FROM node:20-alpine AS runner
-WORKDIR /app
-ENV NODE_ENV=production
-COPY --from=build /app/dist ./dist
-COPY package.json ./
-RUN npm i --omit=dev=false
-EXPOSE 8080
-CMD ["npm", "run", "preview"]
-```
-
-**`Dockerfile.frontend.dev`** (desarrollo con hot-reload):
-```dockerfile
-FROM node:20-alpine
-WORKDIR /app
-COPY package.json package-lock.json* ./
-RUN npm ci || npm i
-EXPOSE 5173
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
-```
-
-### URLs del stack
-
-Tras ejecutar `docker compose up`:
-
-- **Frontend cliente**: http://localhost:5173
-- **Frontend cocina**: http://localhost:5173/kitchen
-- **API Order Service**: http://localhost:8080
-- **API Swagger**: http://localhost:8080/swagger-ui.html
-- **RabbitMQ UI**: http://localhost:15672 (guest/guest)
-- **Kitchen Worker**: http://localhost:8081
-- **Report Service**: http://localhost:8082
-
-Detener stack:
+### Comandos utiles
 
 ```bash
+# Ver logs de un servicio especifico
+docker compose logs -f order-service
+
+# Reiniciar un servicio
+docker compose restart kitchen-worker
+
+# Detener todo
 docker compose down
-```
 
-Detener y limpiar (eliminar volumenes):
-
-```bash
+# Detener y eliminar datos persistidos (bases de datos)
 docker compose down -v
 ```
 
-## Modos de ejecucion
-
-Variables frontend clave:
-- `VITE_USE_MOCK=false` (default recomendado para `main`)
-- `VITE_ALLOW_MOCK_FALLBACK=false` (sin fallback silencioso)
-- `VITE_API_BASE_URL=http://localhost:8080`
-
-Resumen:
-- Modo real: `VITE_USE_MOCK=false` (usa backend y RabbitMQ)
-- Modo mock dev: `VITE_USE_MOCK=true` (solo para desarrollo local)
-- Fallback controlado: `VITE_ALLOW_MOCK_FALLBACK=true` (solo contingencia)
-
-## Seguridad de cocina
-
-Configuracion esperada:
-- Header: `X-Kitchen-Token`
-- Token/PIN por defecto: `cocina123`
-
-Variables:
-- Backend: `KITCHEN_TOKEN_HEADER`, `KITCHEN_AUTH_TOKEN`
-- Frontend: `VITE_KITCHEN_TOKEN_HEADER`, `VITE_KITCHEN_PIN`, `VITE_KITCHEN_FIXED_TOKEN`
-
-## Smoke test minimo
-
-Desde la carpeta raiz con Docker corriendo:
+## Smoke test rapido
 
 ```bash
-# Menu
+# Ver menu
 curl http://localhost:8080/menu
 
-# Crear orden
+# Crear una orden
 curl -X POST http://localhost:8080/orders \
   -H "Content-Type: application/json" \
-  -d '{"tableId":12,"items":[{"productId":1,"quantity":2},{"productId":8,"quantity":1}]}'
+  -d '{"tableId":1,"items":[{"productId":1,"quantity":2}]}'
 
-# Listar ordenes activas (desde cocina)
+# Consultar ordenes desde cocina
 curl "http://localhost:8080/orders?status=PENDING,IN_PREPARATION,READY" \
   -H "X-Kitchen-Token: cocina123"
 ```
 
-## Documentacion canonica
+## Reglas de negocio
 
-- Guia operativa rapida: `docs/development/GUIA_RAPIDA.md`
-- Auditoria fase 1 (consolidada): `docs/auditoria/AUDITORIA.md`
-- Calidad y pruebas (consolidado): `docs/quality/CALIDAD.md`
-- Deuda tecnica (consolidada): `docs/quality/DEUDA_TECNICA.md`
+| Regla | Detalle |
+|-------|---------|
+| `tableId` | Entero positivo entre 1 y 12 |
+| Items | Al menos un item por orden |
+| Productos | Deben existir y estar activos (`is_active = true`) |
+| Estado inicial | Siempre `PENDING` |
+| Estados validos | `PENDING` → `IN_PREPARATION` → `READY` |
+| Evento `order.placed` | `eventVersion` debe ser exactamente `1` |
+| kitchen-worker | Idempotente (upsert si la orden ya existe) |
 
 ## Estructura del repositorio
 
 ```
-Sistemas-de-pedidos-restaurante-frontend/
-├── src/
-│   ├── api/                 # Llamadas HTTP al backend
-│   ├── app/                 # Contextos y providers
-│   ├── components/          # Componentes React reutilizables
-│   ├── domain/              # Tipos y interfaces
-│   ├── pages/               # Paginas (cliente, cocina, etc)
-│   ├── store/               # Estado global (Zustand)
-│   ├── test/                # Fixtures y mocks
-│   ├── App.tsx              # Routing principal
-│   ├── main.tsx             # Entry point
-│   └── styles.css           # Estilos globales
-├── public/                  # Assets estaticos
-├── scripts/                 # Helpers (docker, smoke tests)
-├── docs/                    # Documentacion
-│   ├── development/         # Guias rapidas
-│   ├── quality/             # Calidad y deuda tecnica
-│   └── auditoria/           # Auditorias
-├── package.json             # Dependencias Node
-├── vite.config.ts           # Configuracion Vite
-├── Dockerfile.frontend      # Produccion
-├── Dockerfile.frontend.dev  # Desarrollo
-└── README.md                # Este archivo
+Sistemas-de-pedidos-restaurante-backend/
+├── order-service/               # API REST + publicacion de eventos
+│   ├── src/main/java/.../
+│   │   ├── controller/          # Endpoints HTTP
+│   │   ├── service/             # Logica de negocio
+│   │   ├── entity/              # Entidades JPA
+│   │   ├── dto/                 # Objetos de transferencia
+│   │   ├── domain/event/        # Eventos de dominio
+│   │   ├── infrastructure/      # Mensajeria RabbitMQ
+│   │   ├── config/              # Configuracion Spring
+│   │   ├── security/            # Autenticacion cocina
+│   │   ├── exception/           # Manejo de errores
+│   │   └── repository/          # Acceso a datos
+│   ├── Dockerfile
+│   └── pom.xml
+├── kitchen-worker/              # Consumidor AMQP (sin endpoints HTTP)
+│   ├── src/main/java/.../
+│   │   ├── listener/            # Listener RabbitMQ
+│   │   ├── service/             # Procesamiento de ordenes
+│   │   ├── entity/              # Entidades JPA
+│   │   ├── event/               # DTOs de eventos
+│   │   ├── config/              # Configuracion RabbitMQ
+│   │   └── repository/          # Acceso a datos
+│   ├── Dockerfile
+│   └── pom.xml
+├── report-service/              # Consumidor AMQP + API de reportes
+│   ├── src/main/java/.../
+│   │   ├── controller/          # Endpoints de reportes
+│   │   ├── listener/            # Listener RabbitMQ
+│   │   ├── service/             # Logica de reportes
+│   │   ├── domain/              # Modelos y servicios de dominio
+│   │   ├── entity/              # Entidades JPA
+│   │   ├── dto/                 # DTOs de respuesta
+│   │   ├── config/              # Configuracion RabbitMQ
+│   │   └── repository/          # Acceso a datos
+│   ├── Dockerfile
+│   └── pom.xml
+├── lombok.config                # Genera @Generated para exclusion JaCoCo
+├── pom.xml                      # POM padre multi-modulo
+└── .github/workflows/
+    └── ci-cd.yml                # Pipeline CI/CD
 ```
 
 ## Desarrollo local sin Docker
 
-Para desarrollo local sin Docker:
+Requiere Java 17 y Maven 3.9+:
 
 ```bash
-# Instalar dependencias
-npm install
+cd Sistemas-de-pedidos-restaurante-backend
 
-# Iniciar servidor dev (hot-reload)
-npm run dev
+# Compilar todo
+mvn clean compile
 
-# Compilar para produccion
-npm run build
+# Ejecutar tests + cobertura
+mvn verify
 
-# Vista previa de build
-npm run preview
+# Ejecutar un servicio individual
+mvn -pl order-service spring-boot:run
 ```
 
-Requiere:
-- Node.js 20+
-- npm/yarn
-- Backend ejecutándose en http://localhost:8080
+> Necesita PostgreSQL y RabbitMQ corriendo localmente o levantados con `docker compose up postgres kitchen-postgres report-postgres rabbitmq`.
+
+## Seguridad de cocina
+
+| Variable | Valor por defecto | Descripcion |
+|----------|-------------------|-------------|
+| `KITCHEN_TOKEN_HEADER` | `X-Kitchen-Token` | Header HTTP requerido |
+| `KITCHEN_AUTH_TOKEN` | `cocina123` | Token/PIN de autenticacion |
+
+## Documentacion adicional
+
+- [Guia rapida de desarrollo](docs/development/GUIA_RAPIDA.md)
+- [Auditoria](docs/auditoria/AUDITORIA.md)
+- [Calidad y pruebas](docs/quality/CALIDAD.md)
+- [Deuda tecnica](docs/quality/DEUDA_TECNICA.md)
