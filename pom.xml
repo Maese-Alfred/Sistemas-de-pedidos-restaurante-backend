@@ -157,6 +157,12 @@
                             <exclude>**/event/*Event*</exclude>
                             <exclude>**/domain/event/**</exclude>
                             <exclude>**/*Message.class</exclude>
+                            <!-- Exclude command data objects (pure Lombok DTOs) -->
+                            <exclude>**/application/command/**</exclude>
+                            <!-- Exclude domain model data objects (report-service) -->
+                            <exclude>**/domain/model/**</exclude>
+                            <!-- Exclude messaging infrastructure DTOs -->
+                            <exclude>**/infrastructure/messaging/**</exclude>
                         </excludes>
                     </configuration>
                 </plugin>
