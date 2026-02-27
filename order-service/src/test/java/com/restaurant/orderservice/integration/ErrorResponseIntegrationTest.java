@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.bean.MockBean;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
@@ -161,12 +161,12 @@ class ErrorResponseIntegrationTest {
      * Esto constituye un problema de seguridad (information disclosure).</p>
      */
     @Test
-    @DisplayName("INT-ERR-05: Las respuestas 500 NO exponen detalles internos de excepción")
-    void internalServerError_shouldNotExposeExceptionDetails() throws Exception {
+    @DisplayName("INT-ERR-05: Las respuestas de error por JSON malformado NO exponen detalles internos de excepción")
+    void malformedJsonError_shouldNotExposeExceptionDetails() throws Exception {
         mockMvc.perform(post("/orders")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{invalid-json"))
-                .andExpect(status().isInternalServerError())
+                .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message", not(containsString("JSON"))))
                 .andExpect(jsonPath("$.message", not(containsString("parse"))))
                 .andExpect(jsonPath("$.message", not(containsString("Unexpected"))));

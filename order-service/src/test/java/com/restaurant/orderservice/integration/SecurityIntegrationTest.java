@@ -3,6 +3,8 @@ package com.restaurant.orderservice.integration;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.restaurant.orderservice.application.port.out.OrderPlacedEventPublisherPort;
+import com.restaurant.orderservice.entity.Order;
+import com.restaurant.orderservice.entity.OrderItem;
 import com.restaurant.orderservice.entity.Product;
 import com.restaurant.orderservice.repository.OrderRepository;
 import com.restaurant.orderservice.repository.ProductRepository;
@@ -12,13 +14,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.bean.MockBean;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import static org.hamcrest.Matchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -94,15 +97,13 @@ class SecurityIntegrationTest {
      * El mensaje debería ser genérico, ej. "An unexpected error occurred".</p>
      */
     @Test
-    @DisplayName("INT-SEC-01: Respuestas 500 no exponen detalles internos de excepción")
-    void internalServerError_shouldNotExposeInternalDetails() throws Exception {
-        // Trigger a 500 via malformed JSON → handleGenericError catches HttpMessageNotReadableException
+    @DisplayName("INT-SEC-01: Respuestas de error por JSON malformado no exponen detalles internos")
+    void malformedJsonError_shouldNotExposeInternalDetails() throws Exception {
         mockMvc.perform(post("/orders")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{malformed"))
-                .andExpect(status().isInternalServerError())
-                .andExpect(jsonPath("$.error", is("Internal Server Error")))
-                // The message should NOT contain exception class names or technical details
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error", is("Bad Request")))
                 .andExpect(jsonPath("$.message", not(containsString("Exception"))))
                 .andExpect(jsonPath("$.message", not(containsString("json"))))
                 .andExpect(jsonPath("$.message", not(containsString("parse"))))

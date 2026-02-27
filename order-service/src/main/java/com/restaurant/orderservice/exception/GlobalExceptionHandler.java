@@ -6,8 +6,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,6 +39,21 @@ public class GlobalExceptionHandler {
      * 
      * Validates Requirements: 11.2
      */
+    /**
+     * Handles InactiveProductException.
+     * Returns 422 Unprocessable Entity when a referenced product is inactive.
+     */
+    @ExceptionHandler(InactiveProductException.class)
+    public ResponseEntity<ErrorResponse> handleInactiveProduct(InactiveProductException ex) {
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.UNPROCESSABLE_ENTITY.value())
+                .error("Unprocessable Entity")
+                .message(ex.getMessage())
+                .build();
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(error);
+    }
+
     @ExceptionHandler(ProductNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleProductNotFound(ProductNotFoundException ex) {
         ErrorResponse error = ErrorResponse.builder()
@@ -106,11 +123,11 @@ public class GlobalExceptionHandler {
         log.warn("Invalid status transition attempted: {}", ex.getMessage());
         ErrorResponse error = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
-                .status(HttpStatus.BAD_REQUEST.value())
-                .error("Invalid Status Transition")
+                .status(HttpStatus.CONFLICT.value())
+                .error("Conflict")
                 .message(ex.getMessage())
                 .build();
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
     }
     
     /**
@@ -134,7 +151,7 @@ public class GlobalExceptionHandler {
         ErrorResponse error = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.BAD_REQUEST.value())
-                .error("Validation Failed")
+                .error("Bad Request")
                 .message(String.join(", ", errors))
                 .build();
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
@@ -167,6 +184,21 @@ public class GlobalExceptionHandler {
      * @param ex the KitchenAccessDeniedException that was thrown
      * @return ResponseEntity with ErrorResponse and 401 status
      */
+    /**
+     * Handles KitchenForbiddenException.
+     * Returns 403 Forbidden when kitchen token is present but invalid.
+     */
+    @ExceptionHandler(KitchenForbiddenException.class)
+    public ResponseEntity<ErrorResponse> handleKitchenForbidden(KitchenForbiddenException ex) {
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.FORBIDDEN.value())
+                .error("Forbidden")
+                .message(ex.getMessage())
+                .build();
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+    }
+
     @ExceptionHandler(KitchenAccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleKitchenAccessDenied(KitchenAccessDeniedException ex) {
         ErrorResponse error = ErrorResponse.builder()
@@ -205,6 +237,36 @@ public class GlobalExceptionHandler {
      * 
      * Validates Requirements: 11.3, 11.5, 11.6
      */
+    /**
+     * Handles HttpMessageNotReadableException.
+     * Returns 400 Bad Request when the request body is malformed.
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleMalformedJson(HttpMessageNotReadableException ex) {
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Bad Request")
+                .message("Malformed request body")
+                .build();
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
+    /**
+     * Handles MethodArgumentTypeMismatchException.
+     * Returns 400 Bad Request when path variable or param type conversion fails.
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Bad Request")
+                .message("Invalid parameter: " + ex.getName())
+                .build();
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericError(Exception ex) {
         log.error("Unhandled exception", ex);
@@ -212,7 +274,7 @@ public class GlobalExceptionHandler {
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
                 .error("Internal Server Error")
-                .message(ex.getMessage() != null ? ex.getMessage() : "An unexpected error occurred")
+                .message("An unexpected error occurred")
                 .build();
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
     }

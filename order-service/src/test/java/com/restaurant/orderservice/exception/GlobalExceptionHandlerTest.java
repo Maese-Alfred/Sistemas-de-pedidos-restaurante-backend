@@ -122,7 +122,7 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().getStatus()).isEqualTo(400);
-        assertThat(response.getBody().getError()).isEqualTo("Validation Failed");
+        assertThat(response.getBody().getError()).isEqualTo("Bad Request");
         assertThat(response.getBody().getMessage()).contains("Table ID is required");
         assertThat(response.getBody().getMessage()).contains("Order must contain at least one item");
         assertThat(response.getBody().getTimestamp()).isNotNull();
@@ -209,7 +209,7 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().getStatus()).isEqualTo(500);
         assertThat(response.getBody().getError()).isEqualTo("Internal Server Error");
-        assertThat(response.getBody().getMessage()).isEqualTo("Unexpected error");
+        assertThat(response.getBody().getMessage()).isEqualTo("An unexpected error occurred");
         assertThat(response.getBody().getTimestamp()).isNotNull();
     }
 }

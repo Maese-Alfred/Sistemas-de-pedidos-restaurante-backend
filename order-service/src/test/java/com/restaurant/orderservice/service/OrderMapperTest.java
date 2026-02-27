@@ -284,6 +284,93 @@ class OrderMapperTest {
         // Assert
         assertThat(response.getItems().get(0).getNote()).isNull();
     }
+
+    @Test
+    void mapToOrderResponse_withDuplicateProducts_avoidsNPlusOne() {
+        // Arrange - Multiple items with the same product
+        Order order = createTestOrder(OrderStatus.PENDING);
+        
+        OrderItem item1 = new OrderItem();
+        item1.setId(1L);
+        item1.setProductId(1L);
+        item1.setQuantity(2);
+        item1.setNote("No onions");
+        item1.setOrder(order);
+
+        OrderItem item2 = new OrderItem();
+        item2.setId(2L);
+        item2.setProductId(1L);
+        item2.setQuantity(1);
+        item2.setNote(null);
+        item2.setOrder(order);
+
+        order.setItems(List.of(item1, item2));
+
+        // Should only query for unique product ID (1L), not twice
+        when(productRepository.findAllById(List.of(1L))).thenReturn(List.of(product1));
+
+        // Act
+        OrderResponse response = orderMapper.mapToOrderResponse(order);
+
+        // Assert
+        assertThat(response.getItems()).hasSize(2);
+        assertThat(response.getItems().get(0).getProductName()).isEqualTo("Pizza");
+        assertThat(response.getItems().get(1).getProductName()).isEqualTo("Pizza");
+        verify(productRepository).findAllById(List.of(1L));
+    }
+
+    @Test
+    void mapToOrderResponseList_emptyList_returnsEmptyList() {
+        // Act
+        List<OrderResponse> responses = orderMapper.mapToOrderResponseList(new ArrayList<>());
+
+        // Assert
+        assertThat(responses).isEmpty();
+    }
+
+    @Test
+    void mapToOrderResponseList_multipleOrders_mapsAllCorrectly() {
+        // Arrange
+        Order order1 = createTestOrder(OrderStatus.PENDING);
+        Order order2 = createTestOrder(OrderStatus.IN_PREPARATION);
+
+        OrderItem item1 = new OrderItem();
+        item1.setId(1L);
+        item1.setProductId(1L);
+        item1.setQuantity(2);
+        order1.setItems(List.of(item1));
+
+        OrderItem item2 = new OrderItem();
+        item2.setId(2L);
+        item2.setProductId(2L);
+        item2.setQuantity(1);
+        order2.setItems(List.of(item2));
+
+        when(productRepository.findAllById(any())).thenReturn(List.of(product1, product2));
+
+        // Act
+        List<OrderResponse> responses = orderMapper.mapToOrderResponseList(List.of(order1, order2));
+
+        // Assert
+        assertThat(responses).hasSize(2);
+        assertThat(responses.get(0).getStatus()).isEqualTo(OrderStatus.PENDING);
+        assertThat(responses.get(1).getStatus()).isEqualTo(OrderStatus.IN_PREPARATION);
+    }
+
+    @Test
+    void mapToOrderResponse_withAllStatusTypes_preservesStatus() {
+        // Test all three status values
+        Order pendingOrder = createTestOrder(OrderStatus.PENDING);
+        Order inPrepOrder = createTestOrder(OrderStatus.IN_PREPARATION);
+        Order readyOrder = createTestOrder(OrderStatus.READY);
+
+        when(productRepository.findAllById(any())).thenReturn(new ArrayList<>());
+
+        // Act & Assert
+        assertThat(orderMapper.mapToOrderResponse(pendingOrder).getStatus()).isEqualTo(OrderStatus.PENDING);
+        assertThat(orderMapper.mapToOrderResponse(inPrepOrder).getStatus()).isEqualTo(OrderStatus.IN_PREPARATION);
+        assertThat(orderMapper.mapToOrderResponse(readyOrder).getStatus()).isEqualTo(OrderStatus.READY);
+    }
     
     private Order createTestOrder(OrderStatus status) {
         Order order = new Order();

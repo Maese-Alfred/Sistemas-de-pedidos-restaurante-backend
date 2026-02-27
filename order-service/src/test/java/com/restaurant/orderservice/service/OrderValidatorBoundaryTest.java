@@ -100,7 +100,6 @@ class OrderValidatorBoundaryTest {
     @DisplayName("UNIT-DOM-06 — tableId=13 should be rejected as above maximum boundary [EXPECTED FAIL — missing upper bound check]")
     void validateCreateOrderRequest_withTableId13_shouldReject() {
         // Arrange
-        when(productRepository.findById(1L)).thenReturn(Optional.of(activeProduct));
         CreateOrderRequest request = buildRequest(13, validItems());
 
         // Act & Assert

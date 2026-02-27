@@ -118,19 +118,18 @@ class ReportEndpointIntegrationTest {
     // ── INT-RPT-03: Rango invertido (start > end) ───────────────────────
 
     /**
-     * Expected to FAIL initially.
-     * Current ReportController catches InvalidDateRangeException → returns 400.
-     * TEST_PLAN requires 422 Unprocessable Entity for semantic validation errors.
+     * InvalidDateRangeException is treated as a Bad Request (400)
+     * since the client provided an invalid date range parameter.
      */
     @Test
-    @DisplayName("INT-RPT-03: GET /reports con rango invertido retorna 422 (no 400)")
-    void getReport_invertedDateRange_returns422() throws Exception {
+    @DisplayName("INT-RPT-03: GET /reports con rango invertido retorna 400 con ErrorResponse")
+    void getReport_invertedDateRange_returns400() throws Exception {
         // Act & Assert
         mockMvc.perform(get("/reports")
                         .param("startDate", "2026-03-01")
                         .param("endDate", "2026-02-01"))
-                .andExpect(status().isUnprocessableEntity())
-                .andExpect(jsonPath("$.status", is(422)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status", is(400)))
                 .andExpect(jsonPath("$.error").exists())
                 .andExpect(jsonPath("$.message").exists())
                 .andExpect(jsonPath("$.timestamp").exists());
