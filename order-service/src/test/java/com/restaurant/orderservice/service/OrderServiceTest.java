@@ -305,4 +305,114 @@ class OrderServiceTest {
         item.setNote(note);
         return item;
     }
+
+    // Additional comprehensive branch coverage tests
+    @Test
+    void createOrder_withMultipleItems_createsAllItems() {
+        // Test stream mapping branch
+        CreateOrderRequest request = new CreateOrderRequest(
+                3,
+                List.of(
+                        new OrderItemRequest(1L, 2, "No onions"),
+                        new OrderItemRequest(2L, 1, null),
+                        new OrderItemRequest(3L, 3, "Extra spicy")
+                )
+        );
+
+        Order savedOrder = buildOrder(UUID.randomUUID(), OrderStatus.PENDING);
+        savedOrder.setItems(List.of(
+                buildItem(savedOrder, 1L, 2, "No onions"),
+                buildItem(savedOrder, 2L, 1, null),
+                buildItem(savedOrder, 3L, 3, "Extra spicy")
+        ));
+
+        OrderResponse expectedResponse = OrderResponse.builder()
+                .id(savedOrder.getId())
+                .tableId(savedOrder.getTableId())
+                .status(savedOrder.getStatus())
+                .items(new ArrayList<>())
+                .createdAt(savedOrder.getCreatedAt())
+                .updatedAt(savedOrder.getUpdatedAt())
+                .build();
+
+        doNothing().when(orderValidator).validateCreateOrderRequest(request);
+        when(orderRepository.save(any(Order.class))).thenReturn(savedOrder);
+        doNothing().when(orderCommandExecutor).execute(any());
+        when(orderMapper.mapToOrderResponse(savedOrder)).thenReturn(expectedResponse);
+
+        OrderResponse response = orderService.createOrder(request);
+
+        assertThat(response).isNotNull();
+        verify(orderValidator).validateCreateOrderRequest(request);
+        verify(orderRepository).save(any(Order.class));
+    }
+
+    @Test
+    void updateOrderStatus_multipleTransitions_executesSequentially() {
+        // Test multiple status updates in sequence
+        UUID orderId = UUID.randomUUID();
+        Order pendingOrder = buildOrder(orderId, OrderStatus.PENDING);
+        Order prepOrder = buildOrder(orderId, OrderStatus.IN_PREPARATION);
+        Order readyOrder = buildOrder(orderId, OrderStatus.READY);
+
+        OrderResponse pendingResponse = buildOrderResponse(pendingOrder);
+        OrderResponse prepResponse = buildOrderResponse(prepOrder);
+        OrderResponse readyResponse = buildOrderResponse(readyOrder);
+
+        // First transition: PENDING -> IN_PREPARATION
+        when(orderRepository.findByIdActive(orderId)).thenReturn(Optional.of(pendingOrder));
+        when(orderRepository.save(any())).thenReturn(prepOrder);
+        when(orderMapper.mapToOrderResponse(prepOrder)).thenReturn(prepResponse);
+
+        OrderResponse response1 = orderService.updateOrderStatus(orderId, OrderStatus.IN_PREPARATION);
+        assertThat(response1.getStatus()).isEqualTo(OrderStatus.IN_PREPARATION);
+
+        // Second transition: IN_PREPARATION -> READY
+        when(orderRepository.findByIdActive(orderId)).thenReturn(Optional.of(prepOrder));
+        when(orderRepository.save(any())).thenReturn(readyOrder);
+        when(orderMapper.mapToOrderResponse(readyOrder)).thenReturn(readyResponse);
+
+        OrderResponse response2 = orderService.updateOrderStatus(orderId, OrderStatus.READY);
+        assertThat(response2.getStatus()).isEqualTo(OrderStatus.READY);
+    }
+
+    @Test
+    void getOrders_withMixedStatuses_returnsOrdersFromMultipleStatuses() {
+        // Test filtering with multiple status values
+        Order pending = buildOrder(UUID.randomUUID(), OrderStatus.PENDING);
+        Order inPrep = buildOrder(UUID.randomUUID(), OrderStatus.IN_PREPARATION);
+        Order ready = buildOrder(UUID.randomUUID(), OrderStatus.READY);
+        
+        List<OrderStatus> statuses = List.of(
+                OrderStatus.PENDING, 
+                OrderStatus.IN_PREPARATION,
+                OrderStatus.READY
+        );
+        List<Order> orders = List.of(pending, inPrep, ready);
+
+        List<OrderResponse> expected = List.of(
+                buildOrderResponse(pending),
+                buildOrderResponse(inPrep),
+                buildOrderResponse(ready)
+        );
+
+        when(orderRepository.findByStatusInActive(statuses)).thenReturn(orders);
+        when(orderMapper.mapToOrderResponseList(orders)).thenReturn(expected);
+
+        List<OrderResponse> result = orderService.getOrders(statuses);
+
+        assertThat(result).hasSize(3);
+        verify(orderRepository).findByStatusInActive(statuses);
+    }
+
+    private static OrderResponse buildOrderResponse(Order order) {
+        return OrderResponse.builder()
+                .id(order.getId())
+                .tableId(order.getTableId())
+                .status(order.getStatus())
+                .items(new ArrayList<>())
+                .createdAt(order.getCreatedAt())
+                .updatedAt(order.getUpdatedAt())
+                .build();
+    }
 }
