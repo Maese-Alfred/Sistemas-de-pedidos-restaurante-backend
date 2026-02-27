@@ -153,6 +153,10 @@
                             <exclude>**/exception/**</exclude>
                             <exclude>**/enums/**</exclude>
                             <exclude>**/*Application.*</exclude>
+                            <!-- Exclude DTO-like event/message classes with Lombok builders -->
+                            <exclude>**/event/*Event*</exclude>
+                            <exclude>**/domain/event/**</exclude>
+                            <exclude>**/*Message.class</exclude>
                         </excludes>
                     </configuration>
                 </plugin>
