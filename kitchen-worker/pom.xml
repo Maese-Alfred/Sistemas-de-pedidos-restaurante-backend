@@ -111,6 +111,26 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
+                <executions>
+
+                <!-- Step 1: attach JaCoCo agent -->
+                <execution>
+                    <id>prepare-agent</id>
+                    <goals>
+                        <goal>prepare-agent</goal>
+                    </goals>
+                </execution>
+
+                <!-- Step 2: generate report after tests -->
+                <execution>
+                    <id>report</id>
+                    <phase>test</phase>
+                    <goals>
+                        <goal>report</goal>
+                    </goals>
+                </execution>
+
+            </executions>
             </plugin>
         </plugins>
     </build>
