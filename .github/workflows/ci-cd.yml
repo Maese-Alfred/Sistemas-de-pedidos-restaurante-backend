@@ -67,8 +67,6 @@ jobs:
           -Dsonar.projectKey=Maese-Alfred_Sistemas-de-pedidos-restaurante-backend
           -Dsonar.organization=maese-alfred
           -Dsonar.host.url=https://sonarcloud.io
-          -Dsonar.java.binaries=target/classes
-          -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
 
   docker-publish:
     needs: build-and-test
