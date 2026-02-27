@@ -1,6 +1,6 @@
 package com.restaurant.orderservice.security;
 
-import com.restaurant.orderservice.exception.KitchenAccessDeniedException;
+import com.restaurant.orderservice.exception.KitchenForbiddenException;
 import jakarta.servlet.http.HttpServletRequest;
 
 /**
@@ -20,7 +20,7 @@ public class KitchenTokenValueHandler extends AbstractKitchenSecurityHandler {
     public void handle(HttpServletRequest request) {
         String token = request.getHeader(tokenHeaderName);
         if (!expectedToken.equals(token)) {
-            throw new KitchenAccessDeniedException("Kitchen authentication token is invalid");
+            throw new KitchenForbiddenException("Kitchen authentication token is invalid");
         }
         handleNext(request);
     }
