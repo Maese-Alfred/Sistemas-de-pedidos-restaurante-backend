@@ -27,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -171,7 +172,7 @@ class OrderServiceAdditionalTest {
 
         assertThat(response.getDeletedCount()).isEqualTo(3);
         verify(orderRepository).findAllActive();
-        verify(orderRepository).save(any(Order.class));
+        verify(orderRepository, times(3)).save(any(Order.class));
     }
 
     @Test
