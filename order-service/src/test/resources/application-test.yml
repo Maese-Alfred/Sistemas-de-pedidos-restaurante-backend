@@ -35,6 +35,7 @@ rabbitmq:
     name: test.order.exchange
   routing-key:
     order-placed: order.placed
+    order-ready: order.ready
 
 security:
   kitchen:

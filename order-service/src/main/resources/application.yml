@@ -32,6 +32,7 @@ rabbitmq:
     name: ${RABBITMQ_EXCHANGE_NAME}
   routing-key:
     order-placed: ${RABBITMQ_ROUTING_KEY_ORDER_PLACED}
+    order-ready: ${RABBITMQ_ROUTING_KEY_ORDER_READY}
 
 springdoc:
   api-docs:

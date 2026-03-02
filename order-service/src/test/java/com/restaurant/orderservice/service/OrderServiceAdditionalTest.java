@@ -1,6 +1,7 @@
 package com.restaurant.orderservice.service;
 
 import com.restaurant.orderservice.application.port.out.OrderPlacedEventPublisherPort;
+import com.restaurant.orderservice.application.port.out.OrderReadyEventPublisherPort;
 import com.restaurant.orderservice.dto.DeleteAllOrdersResponse;
 import com.restaurant.orderservice.dto.DeleteOrderResponse;
 import com.restaurant.orderservice.dto.OrderResponse;
@@ -45,6 +46,9 @@ class OrderServiceAdditionalTest {
 
     @Mock
     private OrderPlacedEventPublisherPort orderPlacedEventPublisherPort;
+
+    @Mock
+    private OrderReadyEventPublisherPort orderReadyEventPublisherPort;
 
     @Mock
     private OrderCommandExecutor orderCommandExecutor;

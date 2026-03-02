@@ -1,6 +1,7 @@
 package com.restaurant.orderservice.service;
 
 import com.restaurant.orderservice.application.port.out.OrderPlacedEventPublisherPort;
+import com.restaurant.orderservice.application.port.out.OrderReadyEventPublisherPort;
 import com.restaurant.orderservice.dto.OrderResponse;
 import com.restaurant.orderservice.entity.Order;
 import com.restaurant.orderservice.enums.OrderStatus;
@@ -54,6 +55,9 @@ class OrderSoftDeleteTest {
 
     @Mock
     private OrderPlacedEventPublisherPort orderPlacedEventPublisherPort;
+
+    @Mock
+    private OrderReadyEventPublisherPort orderReadyEventPublisherPort;
 
     @Mock
     private OrderCommandExecutor orderCommandExecutor;

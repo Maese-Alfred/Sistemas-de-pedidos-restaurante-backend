@@ -4,7 +4,9 @@ import com.restaurant.orderservice.dto.*;
 import com.restaurant.orderservice.dto.DeleteOrderResponse;
 import com.restaurant.orderservice.dto.DeleteAllOrdersResponse;
 import com.restaurant.orderservice.application.port.out.OrderPlacedEventPublisherPort;
+import com.restaurant.orderservice.application.port.out.OrderReadyEventPublisherPort;
 import com.restaurant.orderservice.domain.event.OrderPlacedDomainEvent;
+import com.restaurant.orderservice.domain.event.OrderReadyDomainEvent;
 import com.restaurant.orderservice.entity.Order;
 import com.restaurant.orderservice.entity.OrderItem;
 import com.restaurant.orderservice.enums.OrderStatus;
@@ -12,6 +14,7 @@ import com.restaurant.orderservice.exception.OrderNotFoundException;
 import com.restaurant.orderservice.repository.OrderRepository;
 import com.restaurant.orderservice.service.command.OrderCommandExecutor;
 import com.restaurant.orderservice.service.command.PublishOrderPlacedEventCommand;
+import com.restaurant.orderservice.service.command.PublishOrderReadyEventCommand;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -42,6 +45,7 @@ public class OrderService {
     private final OrderValidator orderValidator;
     private final OrderMapper orderMapper;
     private final OrderPlacedEventPublisherPort orderPlacedEventPublisherPort;
+    private final OrderReadyEventPublisherPort orderReadyEventPublisherPort;
     private final OrderCommandExecutor orderCommandExecutor;
     
     /**
@@ -56,11 +60,13 @@ public class OrderService {
                        OrderValidator orderValidator,
                        OrderMapper orderMapper,
                        OrderPlacedEventPublisherPort orderPlacedEventPublisherPort,
+                       OrderReadyEventPublisherPort orderReadyEventPublisherPort,
                        OrderCommandExecutor orderCommandExecutor) {
         this.orderRepository = orderRepository;
         this.orderValidator = orderValidator;
         this.orderMapper = orderMapper;
         this.orderPlacedEventPublisherPort = orderPlacedEventPublisherPort;
+        this.orderReadyEventPublisherPort = orderReadyEventPublisherPort;
         this.orderCommandExecutor = orderCommandExecutor;
     }
     
@@ -223,6 +229,12 @@ public class OrderService {
         log.info("Order status updated successfully: orderId={}, status={}", 
                 updatedOrder.getId(), updatedOrder.getStatus());
         
+        // Publish order.ready event when status transitions to READY
+        if (newStatus == OrderStatus.READY) {
+            OrderReadyDomainEvent readyEvent = buildOrderReadyDomainEvent(updatedOrder);
+            orderCommandExecutor.execute(new PublishOrderReadyEventCommand(orderReadyEventPublisherPort, readyEvent));
+        }
+        
         return orderMapper.mapToOrderResponse(updatedOrder);
     }
 
@@ -301,6 +313,18 @@ public class OrderService {
      * @param order The Order entity to convert to an event
      * @return domain event ready to be published through the output port
      */
+    private OrderReadyDomainEvent buildOrderReadyDomainEvent(Order order) {
+        return OrderReadyDomainEvent.builder()
+                .eventId(UUID.randomUUID())
+                .eventType(OrderReadyDomainEvent.EVENT_TYPE)
+                .eventVersion(OrderReadyDomainEvent.CURRENT_VERSION)
+                .occurredAt(LocalDateTime.now())
+                .orderId(order.getId())
+                .status(order.getStatus().name())
+                .updatedAt(order.getUpdatedAt())
+                .build();
+    }
+
     private OrderPlacedDomainEvent buildOrderPlacedDomainEvent(Order order) {
         List<OrderPlacedDomainEvent.OrderItemData> eventItems = order.getItems().stream()
                 .map(item -> new OrderPlacedDomainEvent.OrderItemData(

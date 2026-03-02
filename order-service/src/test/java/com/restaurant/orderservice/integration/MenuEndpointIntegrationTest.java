@@ -1,6 +1,7 @@
 package com.restaurant.orderservice.integration;
 
 import com.restaurant.orderservice.application.port.out.OrderPlacedEventPublisherPort;
+import com.restaurant.orderservice.application.port.out.OrderReadyEventPublisherPort;
 import com.restaurant.orderservice.entity.Product;
 import com.restaurant.orderservice.repository.ProductRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,6 +43,9 @@ class MenuEndpointIntegrationTest {
 
     @MockBean
     private OrderPlacedEventPublisherPort eventPublisherPort;
+
+    @MockBean
+    private OrderReadyEventPublisherPort orderReadyEventPublisherPort;
 
     @BeforeEach
     void setUp() {
