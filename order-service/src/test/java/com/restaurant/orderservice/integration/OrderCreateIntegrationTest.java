@@ -2,6 +2,7 @@ package com.restaurant.orderservice.integration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.restaurant.orderservice.application.port.out.OrderPlacedEventPublisherPort;
+import com.restaurant.orderservice.application.port.out.OrderReadyEventPublisherPort;
 import com.restaurant.orderservice.dto.CreateOrderRequest;
 import com.restaurant.orderservice.dto.OrderItemRequest;
 import com.restaurant.orderservice.entity.Product;
@@ -56,6 +57,9 @@ class OrderCreateIntegrationTest {
 
     @MockBean
     private OrderPlacedEventPublisherPort eventPublisherPort;
+
+    @MockBean
+    private OrderReadyEventPublisherPort orderReadyEventPublisherPort;
 
     private Product activeProduct;
     private Product inactiveProduct;

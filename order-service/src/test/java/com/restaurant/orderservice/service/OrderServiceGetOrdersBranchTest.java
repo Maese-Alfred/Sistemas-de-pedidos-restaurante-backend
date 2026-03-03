@@ -1,10 +1,13 @@
 package com.restaurant.orderservice.service;
 
+import com.restaurant.orderservice.application.port.out.OrderPlacedEventPublisherPort;
+import com.restaurant.orderservice.application.port.out.OrderReadyEventPublisherPort;
 import com.restaurant.orderservice.dto.OrderResponse;
 import com.restaurant.orderservice.entity.Order;
 import com.restaurant.orderservice.enums.OrderStatus;
 import com.restaurant.orderservice.exception.OrderNotFoundException;
 import com.restaurant.orderservice.repository.OrderRepository;
+import com.restaurant.orderservice.service.command.OrderCommandExecutor;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -36,6 +39,15 @@ class OrderServiceGetOrdersBranchTest {
 
     @Mock
     private OrderMapper orderMapper;
+
+    @Mock
+    private OrderPlacedEventPublisherPort orderPlacedEventPublisherPort;
+
+    @Mock
+    private OrderReadyEventPublisherPort orderReadyEventPublisherPort;
+
+    @Mock
+    private OrderCommandExecutor orderCommandExecutor;
 
     @InjectMocks
     private OrderService orderService;

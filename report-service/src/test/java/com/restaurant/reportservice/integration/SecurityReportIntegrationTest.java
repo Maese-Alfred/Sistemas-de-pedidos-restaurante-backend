@@ -3,8 +3,10 @@ package com.restaurant.reportservice.integration;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -32,8 +34,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * @see docs/week-3-review/TEST_PLAN_V3.md §2.10
  */
 @SpringBootTest
-@AutoConfigureMockMvc
+@AutoConfigureMockMvc(addFilters = false)
+@ImportAutoConfiguration(exclude = {
+        org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration.class,
+        org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration.class,
+        org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration.class
+})
 @ActiveProfiles("test")
+@Import(IntegrationTestWebConfig.class)
 class SecurityReportIntegrationTest {
 
     @Autowired

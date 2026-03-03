@@ -3,6 +3,7 @@ package com.restaurant.orderservice.integration;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.restaurant.orderservice.application.port.out.OrderPlacedEventPublisherPort;
+import com.restaurant.orderservice.application.port.out.OrderReadyEventPublisherPort;
 import com.restaurant.orderservice.entity.Order;
 import com.restaurant.orderservice.entity.OrderItem;
 import com.restaurant.orderservice.entity.Product;
@@ -68,6 +69,9 @@ class SecurityIntegrationTest {
 
     @MockBean
     private OrderPlacedEventPublisherPort eventPublisherPort;
+
+    @MockBean
+    private OrderReadyEventPublisherPort orderReadyEventPublisherPort;
 
     private Product activeProduct;
 
