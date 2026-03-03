@@ -38,3 +38,5 @@ rabbitmq:
   dlq:
     name: test.order.report.dlq
     exchange: test.order.report.dlx
+
+CORS_ALLOWED_ORIGIN_PATTERNS: "*"
